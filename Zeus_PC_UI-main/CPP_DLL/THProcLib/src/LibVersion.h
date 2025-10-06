@@ -8,8 +8,8 @@
  
 #define MYAPP_VERSION_MAJOR		1
 #define MYAPP_VERSION_MINOR		0
-#define MYAPP_VERSION_SUB		6
-#define MYAPP_VERSION_MICRO		2	
+#define MYAPP_VERSION_SUB		7
+#define MYAPP_VERSION_MICRO		1	
  
 
 

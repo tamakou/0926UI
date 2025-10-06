@@ -98,6 +98,14 @@
 		ThLibSeriesType_Juukaku = 1,
 
 	};
+	//#231_added_decubitus
+	enum ePositionalCT
+	{
+		ThLibPositionalCT_Supine =          0,	    //仰臥位
+		ThLibPositionalCT_Left_Decubitus,   //1	    //左側臥位
+		ThLibPositionalCT_Right_Decubitus,  //2     //右側臥位
+		ThLibPositionalCT_Prone ,			//3		//腹臥位
+	};
 	enum eDisplayMode //表示モードの指定 ビットの組み合わせ
 	{
 		ThLibDisplayMode_Unknown = 0,
@@ -125,6 +133,11 @@
 		//#160_added_new_Setup_type
 		ThLibRenderCmd_Setup_Series, // 6 for Juukaku/Haiya
 		ThLibRenderCmd_Setup_3D_Obj, // 7 for ３D側：表示(Preset)
+	};
+	enum eRenderMinorCmd  //レンダリングコマンドの定義
+	{
+		ThLibRenderMinorCmd_Unknown = 0,
+		ThLibRenderMinorCmd_Reset, //1
 	};
 	enum ePenType  //関心領域操作時にペンの太さ
 	{
@@ -304,7 +317,7 @@
 		int render_gc_id; //内部生成、管理
 		//define rendering command
 		int render_cmd_major;//ref:eRenderCmd
-		int render_cmd_minor;
+		int render_cmd_minor;//ref:eRenderMinorCmd
 		//draw area of window
 		//常に出力ウィンドウの描画アリアと一致する!
 		int target_sizeX;

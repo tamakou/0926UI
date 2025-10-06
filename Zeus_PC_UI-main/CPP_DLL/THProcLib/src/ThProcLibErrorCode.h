@@ -15,6 +15,7 @@ namespace ThProcLibErrorCode {
 		ThDllErr_ImportData,
 		ThDllErr_Unknown_Error,
 		ThDllErr_InvalidRenderImage,
+		ThDllErr_InvalidPositionalCT,
 	};
 	std::wstring getErrCode(int code);
 	std::wstring getErrStr(int code);

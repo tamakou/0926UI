@@ -30,7 +30,9 @@ int th_lib_init(int mode)
 	int sts = g_ThProcMain->th_lib_init( mode);
 	//#221_added_dll_called_log
 	if (g_ThProcMain->get_dll_called_log()) {
-		g_UICallLogger.reset(UICallLogger::createLogger());
+		if (g_UICallLogger == nullptr) {//global singleton
+			g_UICallLogger.reset(UICallLogger::createLogger());
+		}
 	}
 	return sts;
 }

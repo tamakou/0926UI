@@ -15,7 +15,7 @@ std::map<int, std::wstring> _error_code_table{
 	{ThDllErr_OutputMesh,L"Output Mesh Error"},
 	{ThDllErr_ImportData,L"ImportData Error"},
 	{ThDllErr_InvalidRenderImage,L"Invalid Render Image"},
-	
+	{ThDllErr_InvalidPositionalCT,L"Invalid PositionalCT"},
 	 
 };
 std::wstring ThProcLibErrorCode::getErrCode(int code)

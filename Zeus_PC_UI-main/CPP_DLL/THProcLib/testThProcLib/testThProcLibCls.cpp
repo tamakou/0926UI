@@ -203,6 +203,7 @@ void CTestThProcLib::testProc(void)
         std::wstring new_study_uid = m_selectStudyUID;
         //
         exe_cmd.cmdID = ThLibCmd_Exe_AISegmentator;//AISegmentator
+        exe_cmd.intParam = ThLibPositionalCT_Left_Decubitus;
         _copy_wstr(exe_cmd.strParam1, new_study_uid.c_str());
         dll_loader._dll_th_lib_exe_cmd(&exe_cmd, &ret_cmd);
 

@@ -15,498 +15,502 @@ using System.Windows.Data;
 using System.Windows.Controls;
 using System.Diagnostics;
 using System.Reflection;
+// ★ 追加: Task/CancellationToken/LINQ
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace AppUI.ViewModels;
 
 public partial class HomeScreenViewModels : ObservableObject, IDisposable
 {
-    private readonly IDialogService _dialogService;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly AppStateService _appStateService;
+  private readonly IDialogService _dialogService;
+  private readonly IServiceProvider _serviceProvider;
+  private readonly AppStateService _appStateService;
 
-    public ObservableObject HedaerControl { get; private set; }
+  public ObservableObject HedaerControl { get; private set; }
 
-    public HomeScreenViewModels(
-        IDialogService dialogService,
-        IServiceProvider serviceProvider,
-        AppStateService appStateService)
+  public HomeScreenViewModels(
+      IDialogService dialogService,
+      IServiceProvider serviceProvider,
+      AppStateService appStateService)
+  {
+    HedaerControl = new MarkerPageHeaderViewModel(appStateService);
+
+    _dialogService = dialogService;
+    _serviceProvider = serviceProvider;
+    _appStateService = appStateService;
+
+    _appStateService.PropertyChanged += OnAppStateChanged;
+    StateProgressViewModel = new StateProgressViewModel(_appStateService);
+
+    OnNewDataButtonCommand = new AsyncRelayCommand(OnNewDataButton);
+    OnUsbTransportButtonCommand = new AsyncRelayCommand(OnUsbTransportButton);
+    OnDeleteTransportListButtonCommand = new AsyncRelayCommand(OnDeleteTransportListButton);
+
+    PatientListView = CollectionViewSource.GetDefaultView(PatientList);
+    TransportListView = CollectionViewSource.GetDefaultView(TransportList);
+
+    WeakReferenceMessenger.Default.Register<CloseMessage>(this, (s, e) =>
     {
-        HedaerControl = new MarkerPageHeaderViewModel(appStateService);
+      Log.Debug("MainWindow ViewModel");
+    });
+    _serviceProvider = serviceProvider;
+    _appStateService = appStateService;
 
-        _dialogService = dialogService;
-        _serviceProvider = serviceProvider;
-        _appStateService = appStateService;
+    Initialize();
+  }
 
-        _appStateService.PropertyChanged += OnAppStateChanged;
-        StateProgressViewModel = new StateProgressViewModel(_appStateService);
-
-        OnNewDataButtonCommand = new AsyncRelayCommand(OnNewDataButton);
-        OnUsbTransportButtonCommand = new AsyncRelayCommand(OnUsbTransportButton);
-        OnDeleteTransportListButtonCommand = new AsyncRelayCommand(OnDeleteTransportListButton);
-
-        PatientListView = CollectionViewSource.GetDefaultView(PatientList);
-        TransportListView = CollectionViewSource.GetDefaultView(TransportList);
-
-        WeakReferenceMessenger.Default.Register<CloseMessage>(this, (s, e) =>
-        {
-            Log.Debug("MainWindow ViewModel");
-        });
-        _serviceProvider = serviceProvider;
-        _appStateService = appStateService;
-
-        Initialize();
+  public void Initialize()
+  {
+    try
+    {
+      ThProc.Initialize(0); // #142,#145 DLL内部リセットのため呼び出しが必要
+    }
+    catch
+    {
+      Log.Warn("HomeScreenViewModel Initialize() ThProc.Initialize(0) failed.");
+      throw;
     }
 
-    public void Initialize()
+    this.IsSettingOpen = false;
+
+    UpdatePatientList();
+    UpdateTransportList();
+  }
+
+  private void OnAppStateChanged(object? sender, PropertyChangedEventArgs? e)
+  {
+    if (e?.PropertyName == nameof(AppStateService.StateType))
     {
-        try
-        {
-            ThProc.Initialize(0); // #142,#145 DLL内部リセットのため呼び出しが必要
-        }
-        catch
-        {
-            Log.Warn("HomeScreenViewModel Initialize() ThProc.Initialize(0) failed.");
-            throw;
-        }
+      ActiveNewDataStatus.IsActive = _appStateService.StateType == MainStateType.AddNewData;
+      ActiveUsbTransportStatus.IsActive = _appStateService.StateType == MainStateType.UsbTransport;
+      ActiveXrealStatus.IsActive = _appStateService.StateType == MainStateType.Xreal;
+      ActiveXrealiPhoneStatus.IsActive = _appStateService.StateType == MainStateType.XrealiPhone;
+      ActiveSettingStatus.IsActive = _appStateService.StateType switch
+      {
+        MainStateType.Setting => true,
+        MainStateType.Version => true,
+        MainStateType.Inquiry => true,
+        MainStateType.Manual => true,
+        _ => false,
+      };
+      ActiveVersionStatus.IsActive = _appStateService.StateType == MainStateType.Version;
+    }
+  }
 
-        this.IsSettingOpen = false;
+  private string _patientListSortProperty = "StudyDate";
 
-        UpdatePatientList();
-        UpdateTransportList();
+  private ListSortDirection _patientListDir = ListSortDirection.Descending;
+  public ICollectionView PatientListView { get; set; }
+  public ObservableCollection<ThProcPatientInfo> PatientList { get; set; } = [];
+
+  [ObservableProperty]
+  public ThProcPatientInfo? selectedItem;
+
+  private string _transportListSortProperty = "Patient.StudyDate";
+
+  private ListSortDirection _transportListDir = ListSortDirection.Descending;
+  public ICollectionView TransportListView { get; set; }
+  public ObservableCollection<ThProcTransportPatientInfo> TransportList { get; set; } = [];
+
+  [ObservableProperty]
+  public ThProcTransportPatientInfo? transportSelectedItem;
+
+  [ObservableProperty]
+  public int transportSelectedItem2 = -1;
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeNewDataStatus = new();
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeUsbTransportStatus = new();
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeXrealStatus = new();
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeXrealiPhoneStatus = new();
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeSettingStatus = new();
+
+  public StateProgressViewModel StateProgressViewModel { get; } = null!;
+  public Action? ShowMarkerRoiSettings { get; set; }
+
+  [ObservableProperty]
+  public bool isSettingOpen = false;
+
+  [ObservableProperty]
+  public ActiveContentsViewModel activeVersionStatus = new();
+
+  private void UpdatePatientList()
+  {
+    PatientList.Clear();
+    var size = ThProc.GetCTDataListSize();
+    for (var i = 0; i < size; i++)
+    {
+      if (ThProc.GetCTDataList(i, out var patientInfo))
+      {
+        var thProcPatientInfo = CreatePatientInfoFromNativeInfo(patientInfo);
+        PatientList.Add(thProcPatientInfo);
+      }
+      else
+      {
+        ThProc.GetLastError(out var errCode, out var errMessage);
+        throw new WarningException(errCode, errMessage);
+      }
     }
 
-    private void OnAppStateChanged(object? sender, PropertyChangedEventArgs? e)
+    if (_patientListSortProperty != "")
     {
-        if (e?.PropertyName == nameof(AppStateService.StateType))
+      PatientListView.SortDescriptions.Clear();
+      PatientListView.SortDescriptions.Add(new SortDescription(_patientListSortProperty, _patientListDir));
+      PatientListView.Refresh();
+    }
+  }
+
+  private void UpdateTransportList()
+  {
+    TransportList.Clear();
+    var size = ThProc.GetTransportDataListSize();
+    for (var i = 0; i < size; i++)
+    {
+      if (ThProc.GetTransportDataList(i, out var patientInfo))
+      {
+        if (patientInfo.OutputType == (int)CTDataTransportType.Xreal)
         {
-            ActiveNewDataStatus.IsActive = _appStateService.StateType == MainStateType.AddNewData;
-            ActiveUsbTransportStatus.IsActive = _appStateService.StateType == MainStateType.UsbTransport;
-            ActiveXrealStatus.IsActive = _appStateService.StateType == MainStateType.Xreal;
-            ActiveXrealiPhoneStatus.IsActive = _appStateService.StateType == MainStateType.XrealiPhone;
-            ActiveSettingStatus.IsActive = _appStateService.StateType switch
-            {
-                MainStateType.Setting => true,
-                MainStateType.Version => true,
-                MainStateType.Inquiry => true,
-                MainStateType.Manual => true,
-                _ => false,
-            };
-            ActiveVersionStatus.IsActive = _appStateService.StateType == MainStateType.Version;
+          var thProcPatientInfo = new ThProcTransportPatientInfo()
+          {
+            Patient = CreatePatientInfoFromNativeInfo(patientInfo),
+            TransportType = CTDataTransportType.Xreal,
+          };
+          TransportList.Add(thProcPatientInfo);
         }
+        else if (patientInfo.OutputType == (int)CTDataTransportType.iPhone)
+        {
+          var thProcPatientInfoiPhone = new ThProcTransportPatientInfo()
+          {
+            Patient = CreatePatientInfoFromNativeInfo(patientInfo),
+            TransportType = CTDataTransportType.iPhone
+          };
+          TransportList.Add(thProcPatientInfoiPhone);
+        }
+        if (patientInfo.OutputType == (int)CTDataTransportType.XrealIPhone)
+        {
+          // XREAL/IPhoneの場合はリストを2つに分けて表示する必要がある
+          var thProcPatientInfoXreal = new ThProcTransportPatientInfo()
+          {
+            Patient = CreatePatientInfoFromNativeInfo(patientInfo),
+            TransportType = CTDataTransportType.Xreal
+          };
+          var thProcPatientInfoiPhone = new ThProcTransportPatientInfo()
+          {
+            Patient = CreatePatientInfoFromNativeInfo(patientInfo),
+            //      TransportType = CTDataTransportType.Xreal
+            //#32_fixed_2025_05_30 N.Furutsuki
+            TransportType = CTDataTransportType.iPhone
+          };
+          TransportList.Add(thProcPatientInfoXreal);
+          TransportList.Add(thProcPatientInfoiPhone);
+        }
+      }
+      else
+      {
+        ThProc.GetLastError(out var errCode, out var errMessage);
+        throw new WarningException(errCode, errMessage);
+      }
     }
 
-    private string _patientListSortProperty = "StudyDate";
-
-    private ListSortDirection _patientListDir = ListSortDirection.Descending;
-    public ICollectionView PatientListView { get; set; }
-    public ObservableCollection<ThProcPatientInfo> PatientList { get; set; } = [];
-
-    [ObservableProperty]
-    public ThProcPatientInfo? selectedItem;
-
-    private string _transportListSortProperty = "Patient.StudyDate";
-
-    private ListSortDirection _transportListDir = ListSortDirection.Descending;
-    public ICollectionView TransportListView { get; set; }
-    public ObservableCollection<ThProcTransportPatientInfo> TransportList { get; set; } = [];
-
-    [ObservableProperty]
-    public ThProcTransportPatientInfo? transportSelectedItem;
-
-    [ObservableProperty]
-    public int transportSelectedItem2 = -1;
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeNewDataStatus = new();
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeUsbTransportStatus = new();
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeXrealStatus = new();
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeXrealiPhoneStatus = new();
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeSettingStatus = new();
-
-    public StateProgressViewModel StateProgressViewModel { get; } = null!;
-    public Action? ShowMarkerRoiSettings { get; set; }
-
-    [ObservableProperty]
-    public bool isSettingOpen = false;
-
-    [ObservableProperty]
-    public ActiveContentsViewModel activeVersionStatus = new();
-
-    private void UpdatePatientList()
+    if (_transportListSortProperty != "")
     {
-        PatientList.Clear();
-        var size = ThProc.GetCTDataListSize();
-        for (var i = 0; i < size; i++)
-        {
-            if (ThProc.GetCTDataList(i, out var patientInfo))
-            {
-                var thProcPatientInfo = CreatePatientInfoFromNativeInfo(patientInfo);
-                PatientList.Add(thProcPatientInfo);
-            }
-            else
-            {
-                ThProc.GetLastError(out var errCode, out var errMessage);
-                throw new WarningException(errCode, errMessage);
-            }
-        }
+      TransportListView.SortDescriptions.Clear();
+      TransportListView.SortDescriptions.Add(new SortDescription(_transportListSortProperty, _transportListDir));
+      TransportListView.Refresh();
+    }
+  }
 
-        if (_patientListSortProperty != "")
-        {
-            PatientListView.SortDescriptions.Clear();
-            PatientListView.SortDescriptions.Add(new SortDescription(_patientListSortProperty, _patientListDir));
-            PatientListView.Refresh();
-        }
+  private static ThProcPatientInfo CreatePatientInfoFromNativeInfo(CsPatientInfo ctListInfo)
+  {
+    return new ThProcPatientInfo()
+    {
+      PatientName = ctListInfo.PatientName,
+      PatientID = ctListInfo.PatientID,
+      Birthday = ctListInfo.Birthday,
+      Age = ctListInfo.Age.ToString(),
+      Gender = ctListInfo.Gender,
+      StudyDate = ctListInfo.StudyDate, // NOTE: 元コードが StudyDate の可能性。プロジェクトの定義に合わせてください。
+      StudyTime = ctListInfo.StudyTime,
+      StudyDateTime = $"{ctListInfo.StudyDate} {ctListInfo.StudyTime}",
+      SliceThickness = ctListInfo.SliceThickness.ToString(),
+      //CTMode = ctListInfo.CTMode,
+      ProcessStatus = ctListInfo.ProcessStatus == (int)RoiType.NoRoi ? "" : "〇",
+      UpdateDate = ctListInfo.UpdateDate,
+      UpdateTime = ctListInfo.UpdateTime,
+      StudyPattern = ctListInfo.StudyPattern.ToString(),  // 番号？
+      StudDescription = ctListInfo.StudDescription,
+      StudyUID = ctListInfo.StudyUID,
+    };
+  }
+
+  public void OnPatientListSort(string propertyName)
+  {
+    if (_patientListSortProperty == propertyName)
+    {
+      _patientListSortProperty = "";
+      _patientListDir = ListSortDirection.Descending;
+    }
+    else
+    {
+      _patientListSortProperty = propertyName;
+      _patientListDir = ListSortDirection.Descending;
     }
 
-    private void UpdateTransportList()
+    PatientListView.SortDescriptions.Clear();
+    if (_patientListSortProperty != "")
     {
-        TransportList.Clear();
-        var size = ThProc.GetTransportDataListSize();
-        for (var i = 0; i < size; i++)
-        {
-            if (ThProc.GetTransportDataList(i, out var patientInfo))
-            {
-                if (patientInfo.OutputType == (int)CTDataTransportType.Xreal)
-                {
-                    var thProcPatientInfo = new ThProcTransportPatientInfo()
-                    {
-                        Patient = CreatePatientInfoFromNativeInfo(patientInfo),
-                        TransportType = CTDataTransportType.Xreal,
-                    };
-                    TransportList.Add(thProcPatientInfo);
-                }
-                else if (patientInfo.OutputType == (int)CTDataTransportType.iPhone)
-                {
-                    var thProcPatientInfoiPhone = new ThProcTransportPatientInfo()
-                    {
-                        Patient = CreatePatientInfoFromNativeInfo(patientInfo),
-                        TransportType = CTDataTransportType.iPhone
-                    };
-                    TransportList.Add(thProcPatientInfoiPhone);
-                }
-                if (patientInfo.OutputType == (int)CTDataTransportType.XrealIPhone)
-                {
-                    // XREAL/IPhoneの場合はリストを2つに分けて表示する必要がある
-                    var thProcPatientInfoXreal = new ThProcTransportPatientInfo()
-                    {
-                        Patient = CreatePatientInfoFromNativeInfo(patientInfo),
-                        TransportType = CTDataTransportType.Xreal
-                    };
-                    var thProcPatientInfoiPhone = new ThProcTransportPatientInfo()
-                    {
-                        Patient = CreatePatientInfoFromNativeInfo(patientInfo),
-                        //      TransportType = CTDataTransportType.Xreal
-                        //#32_fixed_2025_05_30 N.Furutsuki
-                        TransportType = CTDataTransportType.iPhone
-                    };
-                    TransportList.Add(thProcPatientInfoXreal);
-                    TransportList.Add(thProcPatientInfoiPhone);
-                }
-            }
-            else
-            {
-                ThProc.GetLastError(out var errCode, out var errMessage);
-                throw new WarningException(errCode, errMessage);
-            }
-        }
-
-        if (_transportListSortProperty != "")
-        {
-            TransportListView.SortDescriptions.Clear();
-            TransportListView.SortDescriptions.Add(new SortDescription(_transportListSortProperty, _transportListDir));
-            TransportListView.Refresh();
-        }
+      PatientListView.SortDescriptions.Add(new SortDescription(propertyName, _patientListDir));
+      PatientListView.Refresh();
+    }
+  }
+  public void OnTransportListSort(string propertyName)
+  {
+    if (_transportListSortProperty == propertyName)
+    {
+      _transportListSortProperty = "";
+      _transportListDir = ListSortDirection.Descending;
+    }
+    else
+    {
+      _transportListSortProperty = propertyName;
+      _transportListDir = ListSortDirection.Descending;
     }
 
-    private static ThProcPatientInfo CreatePatientInfoFromNativeInfo(CsPatientInfo ctListInfo)
+    TransportListView.SortDescriptions.Clear();
+    if (_transportListSortProperty != "")
     {
-        return new ThProcPatientInfo()
-        {
-            PatientName = ctListInfo.PatientName,
-            PatientID = ctListInfo.PatientID,
-            Birthday = ctListInfo.Birthday,
-            Age = ctListInfo.Age.ToString(),
-            Gender = ctListInfo.Gender,
-            StudyDate = ctListInfo.StudyDate,
-            StudyTime = ctListInfo.StudyTime,
-            StudyDateTime = $"{ctListInfo.StudyDate} {ctListInfo.StudyTime}",
-            SliceThickness = ctListInfo.SliceThickness.ToString(),
-            ProcessStatus = ctListInfo.ProcessStatus == (int)RoiType.NoRoi ? "" : "〇",
-            //CTMode = ctListInfo.CTMode,
-            UpdateDate = ctListInfo.UpdateDate,
-            UpdateTime = ctListInfo.UpdateTime,
-            StudyPattern = ctListInfo.StudyPattern.ToString(),  // 番号？
-            StudDescription = ctListInfo.StudDescription,
-            StudyUID = ctListInfo.StudyUID,
-        };
+      TransportListView.SortDescriptions.Add(new SortDescription(propertyName, _transportListDir));
+      TransportListView.Refresh();
     }
+  }
 
-    public void OnPatientListSort(string propertyName)
+  public IAsyncRelayCommand OnNewDataButtonCommand { get; }
+  private async Task OnNewDataButton()
+  {
+    _appStateService.StateType = MainStateType.AddNewData;
+
+    var importFlg = ThProc.IsImportFromCD(out var importPath);
+    if (importFlg)
     {
-        if (_patientListSortProperty == propertyName)
-        {
-            _patientListSortProperty = "";
-            _patientListDir = ListSortDirection.Descending;
-        }
-        else
-        {
-            _patientListSortProperty = propertyName;
-            _patientListDir = ListSortDirection.Descending;
-        }
-
-        PatientListView.SortDescriptions.Clear();
-        if (_patientListSortProperty != "")
-        {
-            PatientListView.SortDescriptions.Add(new SortDescription(propertyName, _patientListDir));
-            PatientListView.Refresh();
-        }
-    }
-    public void OnTransportListSort(string propertyName)
-    {
-        if (_transportListSortProperty == propertyName)
-        {
-            _transportListSortProperty = "";
-            _transportListDir = ListSortDirection.Descending;
-        }
-        else
-        {
-            _transportListSortProperty = propertyName;
-            _transportListDir = ListSortDirection.Descending;
-        }
-
-        TransportListView.SortDescriptions.Clear();
-        if (_transportListSortProperty != "")
-        {
-            TransportListView.SortDescriptions.Add(new SortDescription(propertyName, _transportListDir));
-            TransportListView.Refresh();
-        }
-    }
-
-    public IAsyncRelayCommand OnNewDataButtonCommand { get; }
-    private async Task OnNewDataButton()
-    {
-        _appStateService.StateType = MainStateType.AddNewData;
-
-        var importFlg = ThProc.IsImportFromCD(out var importPath);
-        if (importFlg)
-        {
-            var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportRomSetting);
-            var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
-            {
-                MessageLines = [new(dlgMessage)],
-            };
+      var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportRomSetting);
+      var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dlgMessage)],
+      };
 #if DEMO_PROC
-            var cdRomDrives = DriveInfo.GetDrives()
-            .Where(d => d.DriveType == DriveType.Removable && d.IsReady);
+      var cdRomDrives = DriveInfo.GetDrives()
+      .Where(d => d.DriveType == DriveType.Removable && d.IsReady);
 #else
             var cdRomDrives = DriveInfo.GetDrives()
             .Where(d => d.DriveType == DriveType.CDRom && d.IsReady);
 #endif
 
-            if (!cdRomDrives.Any())
-            {
-                var timer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromSeconds(0.05)
-                };
-                timer.Tick += (sender, e) =>
-                {
-                    var test = DriveInfo.GetDrives();
+      if (!cdRomDrives.Any())
+      {
+        var timer = new DispatcherTimer
+        {
+          Interval = TimeSpan.FromSeconds(0.05)
+        };
+        timer.Tick += (sender, e) =>
+        {
+          var test = DriveInfo.GetDrives();
 #if DEMO_PROC
-                    var drivesResult = DriveInfo.GetDrives()
-                        .Where(d => d.DriveType == DriveType.Removable && d.IsReady).Any();
+          var drivesResult = DriveInfo.GetDrives()
+              .Where(d => d.DriveType == DriveType.Removable && d.IsReady).Any();
 #else
                     var drivesResult = DriveInfo.GetDrives()
                         .Where(d => d.DriveType == DriveType.CDRom && d.IsReady).Any();
 #endif
-                    if (drivesResult)
-                    {
-                        WeakReferenceMessenger.Default.Send<CloseMessage>();
-                        timer?.Stop();
-                        timer = null;
-                    }
-                };
-                timer.Start();
-                _dialogService.ShowDialog(dialogVm);
-            }
+          if (drivesResult)
+          {
+            WeakReferenceMessenger.Default.Send<CloseMessage>();
+            timer?.Stop();
+            timer = null;
+          }
+        };
+        timer.Start();
+        _dialogService.ShowDialog(dialogVm);
+      }
 
 #if DEMO_PROC
-            cdRomDrives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Removable && d.IsReady);
+      cdRomDrives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Removable && d.IsReady);
 #else
             cdRomDrives = DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom && d.IsReady);
 #endif
 
-            if (!cdRomDrives.Any())
-            {
-                dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportRomNotFound);
-                dialogVm.MessageLines = [new(dlgMessage)];
-                _dialogService.ShowDialog(dialogVm);
+      if (!cdRomDrives.Any())
+      {
+        dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportRomNotFound);
+        dialogVm.MessageLines = [new(dlgMessage)];
+        _dialogService.ShowDialog(dialogVm);
 
-                _appStateService.StateType = MainStateType.Normal;
-                return;
-            }
-            else
-            {
-                var cnt = 0;
-                Log.Info("ImportPath:{0}", importPath);
-                foreach (var drive in cdRomDrives)
-                {
-                    Log.Info("cdRomDrive{0} Name:{1} Type:{2} IsReady:{3} DriveFormat:{4} RootDirectory:{5} VolumeLabel:{6}",
-                        cnt, drive.Name, drive.DriveType, drive.IsReady, drive.DriveFormat, drive.RootDirectory, drive.VolumeLabel);
-                }
-            }
-        }
-
-        if (!System.IO.Directory.Exists(importPath))
+        _appStateService.StateType = MainStateType.Normal;
+        return;
+      }
+      else
+      {
+        var cnt = 0;
+        Log.Info("ImportPath:{0}", importPath);
+        foreach (var drive in cdRomDrives)
         {
-            var dlgMessage = MessageService.GetMessage(importFlg ? MessageCode.DlgMsgImportDriveNoCDRom : MessageCode.DlgMsgImportDataNotFound);
-            var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
-            {
-                MessageLines = [new(dlgMessage)],
-            };
-
-            _dialogService.ShowDialog(dialogVm);
-
-            _appStateService.StateType = MainStateType.Normal;
-            return;
+          Log.Info("cdRomDrive{0} Name:{1} Type:{2} IsReady:{3} DriveFormat:{4} RootDirectory:{5} VolumeLabel:{6}",
+              cnt, drive.Name, drive.DriveType, drive.IsReady, drive.DriveFormat, drive.RootDirectory, drive.VolumeLabel);
         }
-
-        var cts = new CancellationTokenSource();
-        var pollingResult = new ThProcCmdStatus();
-        try
-        {
-            var poolingTask = ThProc.ExecuteImportCommand(out ThProcCmdOutput importResutl,
-                cts,
-                onProgress: statusResult => { WeakReferenceMessenger.Default.Send<ProgressUpdateMessage>(new(statusResult.CmdProgress)); },
-                onSucceeded: statusResult => { WeakReferenceMessenger.Default.Send<CloseMessage>(); });
-
-            if (poolingTask.Status != TaskStatus.Canceled ||
-                poolingTask.Status != TaskStatus.Faulted)
-            {
-                var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportDataCopying);
-                var copydialogVm = new GenericDialogViewModel(DialogPreset.ProgressCancelable)
-                {
-                    MessageLines = [new(dlgMessage)],
-                    CancelAction = new Action(() => { cts.Cancel(); }),
-                };
-                _dialogService.ShowDialog(copydialogVm);
-            }
-            pollingResult = await poolingTask;
-        }
-        catch (OperationCanceledException)
-        {
-            Log.Info("CTData import canceled.");
-            WeakReferenceMessenger.Default.Send<CloseMessage>();
-            return;
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex.Message);
-            throw;
-        }
-        finally
-        {
-            _appStateService.StateType = MainStateType.Normal;
-        }
-
-        UpdatePatientList(); // リストを更新
-
-        if (!ThProc.ExecuteCheckImageServerCommand())
-        {
-            var dlgMesage = MessageService.GetMessage(MessageCode.DLLImageServerError);
-            Log.Fatal(dlgMesage);
-            throw new FatalException(dlgMesage);
-        }
-
-        var storageService = new ImageStorageService();
-
-        var sliceContentVM = _serviceProvider.GetRequiredService<SliceViewer2DControlViewModel>();
-
-        var studyUid = pollingResult.StrParam1;
-        var patientInfo = PatientList.Where(i => i.StudyUID == studyUid);
-        if (!patientInfo.Any())
-        {
-            Log.Error("StudyUid:{0} is not found in PatheintList.", studyUid);
-            patientInfo = PatientList;
-        }
-
-        try
-        {
-            var initTask = sliceContentVM.Initialize(studyUid, true);
-
-            if (initTask.Status != TaskStatus.Faulted &&
-                initTask.Status != TaskStatus.Canceled)
-            {
-                var sliceDialogVm = _serviceProvider.GetRequiredService<SliceViewerWindowViewModel>();
-                sliceDialogVm.CurrentViewModel = sliceContentVM;
-                _dialogService.ShowDialog(sliceDialogVm);
-            }
-
-            await initTask;
-        }
-        catch
-        {
-            throw;
-        }
-        finally
-        {
-            sliceContentVM.ReleaseRendering();
-            _appStateService.StateType = MainStateType.Normal;
-        }
-
-        UpdatePatientList();
-
-        try
-        {
-            ThProc.Initialize(0); // #142,#145 DLL内部リセットのため呼び出しが必要
-        }
-        catch (ExpectedException ex)
-        {
-            throw new WarningException(ex.ErrCode, ex.Message);
-        }
-        catch
-        {
-            Log.Warn("HomeScreenViewModel OnNewDataButton() ThProc.Initialize(0) failed.");
-        }
+      }
     }
 
-    [RelayCommand]
-    private void MarkerRoiButton()
+    if (!System.IO.Directory.Exists(importPath))
     {
-        ShowMarkerRoiSettings?.Invoke();
+      var dlgMessage = MessageService.GetMessage(importFlg ? MessageCode.DlgMsgImportDriveNoCDRom : MessageCode.DlgMsgImportDataNotFound);
+      var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dlgMessage)],
+      };
+
+      _dialogService.ShowDialog(dialogVm);
+
+      _appStateService.StateType = MainStateType.Normal;
+      return;
     }
 
-    [RelayCommand]
-    private void CTDataListSelectDeleteButton()
+    var cts = new CancellationTokenSource();
+    var pollingResult = new ThProcCmdStatus();
+    try
     {
-        const string PatientName = "患者名：";
-        const string PatientID = "患者ID：";
-        const string StudyDate = "撮影日：";
+      var poolingTask = ThProc.ExecuteImportCommand(out ThProcCmdOutput importResutl,
+          cts,
+          onProgress: statusResult => { WeakReferenceMessenger.Default.Send<ProgressUpdateMessage>(new(statusResult.CmdProgress)); },
+          onSucceeded: statusResult => { WeakReferenceMessenger.Default.Send<CloseMessage>(); });
 
-        if (SelectedItem == null) return;
-        var patient = SelectedItem;
-
-        var isDelete = false;
-        var dlgMesage = MessageService.GetMessage(MessageCode.DlgMsgDeleteThisPatient);
-        _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.YesNo)
+      if (poolingTask.Status != TaskStatus.Canceled ||
+          poolingTask.Status != TaskStatus.Faulted)
+      {
+        var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgImportDataCopying);
+        var copydialogVm = new GenericDialogViewModel(DialogPreset.ProgressCancelable)
         {
-            MessageLines = [new(PatientName, patient.PatientName), new(PatientID, patient.PatientID), new(StudyDate, patient.StudyDate), new(dlgMesage)],
-            YesAction = new Action(() => { isDelete = true; }),
-            CancelAction = new Action(() => { isDelete = false; }),
-        });
+          MessageLines = [new(dlgMessage)],
+          CancelAction = new Action(() => { cts.Cancel(); }),
+        };
+        _dialogService.ShowDialog(copydialogVm);
+      }
+      pollingResult = await poolingTask;
+    }
+    catch (OperationCanceledException)
+    {
+      Log.Info("CTData import canceled.");
+      WeakReferenceMessenger.Default.Send<CloseMessage>();
+      return;
+    }
+    catch (Exception ex)
+    {
+      Log.Error(ex.Message);
+      throw;
+    }
+    finally
+    {
+      _appStateService.StateType = MainStateType.Normal;
+    }
 
-        if (isDelete)
-        {
+    UpdatePatientList(); // リストを更新
+
+    if (!ThProc.ExecuteCheckImageServerCommand())
+    {
+      var dlgMesage = MessageService.GetMessage(MessageCode.DLLImageServerError);
+      Log.Fatal(dlgMesage);
+      throw new FatalException(dlgMesage);
+    }
+
+    var storageService = new ImageStorageService();
+
+    var sliceContentVM = _serviceProvider.GetRequiredService<SliceViewer2DControlViewModel>();
+
+    var studyUid = pollingResult.StrParam1;
+    var patientInfo = PatientList.Where(i => i.StudyUID == studyUid);
+    if (!patientInfo.Any())
+    {
+      Log.Error("StudyUid:{0} is not found in PatheintList.", studyUid);
+      patientInfo = PatientList;
+    }
+
+    try
+    {
+      var initTask = sliceContentVM.Initialize(studyUid, true);
+
+      if (initTask.Status != TaskStatus.Faulted &&
+          initTask.Status != TaskStatus.Canceled)
+      {
+        var sliceDialogVm = _serviceProvider.GetRequiredService<SliceViewerWindowViewModel>();
+        sliceDialogVm.CurrentViewModel = sliceContentVM;
+        _dialogService.ShowDialog(sliceDialogVm);
+      }
+
+      await initTask;
+    }
+    catch
+    {
+      throw;
+    }
+    finally
+    {
+      sliceContentVM.ReleaseRendering();
+      _appStateService.StateType = MainStateType.Normal;
+    }
+
+    UpdatePatientList();
+
+    try
+    {
+      ThProc.Initialize(0); // #142,#145 DLL内部リセットのため呼び出しが必要
+    }
+    catch (ExpectedException ex)
+    {
+      throw new WarningException(ex.ErrCode, ex.Message);
+    }
+    catch
+    {
+      Log.Warn("HomeScreenViewModel OnNewDataButton() ThProc.Initialize(0) failed.");
+    }
+  }
+
+  [RelayCommand]
+  private void MarkerRoiButton()
+  {
+    ShowMarkerRoiSettings?.Invoke();
+  }
+
+  [RelayCommand]
+  private void CTDataListSelectDeleteButton()
+  {
+    const string PatientName = "患者名：";
+    const string PatientID = "患者ID：";
+    const string StudyDate = "撮影日：";
+
+    if (SelectedItem == null) return;
+    var patient = SelectedItem;
+
+    var isDelete = false;
+    var dlgMesage = MessageService.GetMessage(MessageCode.DlgMsgDeleteThisPatient);
+    _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.YesNo)
+    {
+      MessageLines = [new(PatientName, patient.PatientName), new(PatientID, patient.PatientID), new(StudyDate, patient.StudyDate), new(dlgMesage)],
+      YesAction = new Action(() => { isDelete = true; }),
+      CancelAction = new Action(() => { isDelete = false; }),
+    });
+
+    if (isDelete)
+    {
 #if DEMO_PROC
-            PatientList.Remove(SelectedItem);
+      PatientList.Remove(SelectedItem);
 #else
             if (!ThProc.ExecuteCTDataListDeleteCommand(patient.StudyUID, out ThProcCmdOutput output))
             {
@@ -517,36 +521,36 @@ public partial class HomeScreenViewModels : ObservableObject, IDisposable
 
             UpdatePatientList();
 #endif
-            SelectedItem = null;
+      SelectedItem = null;
 
-            dlgMesage = MessageService.GetMessage(MessageCode.DlgMsgDeletedPatient);
-            _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
-            {
-                MessageLines = [new(dlgMesage)],
-            });
-        }
+      dlgMesage = MessageService.GetMessage(MessageCode.DlgMsgDeletedPatient);
+      _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dlgMesage)],
+      });
     }
+  }
 
-    [RelayCommand]
-    private void CTDataListAllDeleteButton()
+  [RelayCommand]
+  private void CTDataListAllDeleteButton()
+  {
+    if (PatientList.Count <= 0) return;
+    var isDelete = false;
+
+    var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeleteAllPatient);
+    var dialogVm = new GenericDialogViewModel(DialogPreset.YesNo)
     {
-        if (PatientList.Count <= 0) return;
-        var isDelete = false;
+      MessageLines = [new(dlgMessage)],
+      YesAction = new Action(() => { isDelete = true; }),
+      CancelAction = new Action(() => { isDelete = false; }),
+    };
+    var result = _dialogService.ShowDialog(dialogVm);
 
-        var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeleteAllPatient);
-        var dialogVm = new GenericDialogViewModel(DialogPreset.YesNo)
-        {
-            MessageLines = [new(dlgMessage)],
-            YesAction = new Action(() => { isDelete = true; }),
-            CancelAction = new Action(() => { isDelete = false; }),
-        };
-        var result = _dialogService.ShowDialog(dialogVm);
-
-        if (isDelete == true)
-        {
+    if (isDelete == true)
+    {
 
 #if DEMO_PROC
-            PatientList.Clear();
+      PatientList.Clear();
 #else
             var errCode = "";
             var errMessage = "";
@@ -568,61 +572,61 @@ public partial class HomeScreenViewModels : ObservableObject, IDisposable
             if (!succeeded) throw new WarningException(errCode, errMessage);
 
 #endif
-            SelectedItem = null;
+      SelectedItem = null;
 
-            dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeletedAllPatient);
-            _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
-            {
-                MessageLines = [new(dlgMessage)],
-            });
-        }
+      dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeletedAllPatient);
+      _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dlgMessage)],
+      });
     }
-    [RelayCommand]
-    private void CTDataListContextMenu1()
+  }
+  [RelayCommand]
+  private void CTDataListContextMenu1()
+  {
+    /*
+     * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
+     */
+    MarkerRoiButton();
+  }
+  [RelayCommand]
+  private void CTDataListContextMenu2()
+  {
+    /*
+     * CTデータリストのコンテキストメニュー(2段目)の処理はここに記述します。
+     */
+    CTDataListSelectDeleteButton();
+  }
+
+  public IAsyncRelayCommand OnUsbTransportButtonCommand { get; }
+  private async Task OnUsbTransportButton()
+  {
+    if (TransportSelectedItem == null) return;
+    var transport = TransportSelectedItem;
+
+    _appStateService.StateType = MainStateType.UsbTransport;
+
+    var homeFolderPath = "";
+    try
     {
-        /*
-         * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
-         */
-        MarkerRoiButton();
+      ThProc.GetEnvironment(out var env);
+      homeFolderPath = env.HomeFolder.Replace('/', '\\');
     }
-    [RelayCommand]
-    private void CTDataListContextMenu2()
+    catch (ExpectedException ex)
     {
-        /*
-         * CTデータリストのコンテキストメニュー(2段目)の処理はここに記述します。
-         */
-        CTDataListSelectDeleteButton();
+      Log.Error("HomeScreenViewModel OnUsbTransportButton() GetEnvironment failed.");
+      Log.Warn("[{0}] {1}", ex.ErrCode, ex.Message);
+    }
+    catch
+    {
+      _appStateService.StateType = MainStateType.Normal;
+      throw;
     }
 
-    public IAsyncRelayCommand OnUsbTransportButtonCommand { get; }
-    private async Task OnUsbTransportButton()
+    try
     {
-        if (TransportSelectedItem == null) return;
-        var transport = TransportSelectedItem;
-
-        _appStateService.StateType = MainStateType.UsbTransport;
-
-        var homeFolderPath = "";
-        try
-        {
-            ThProc.GetEnvironment(out var env);
-            homeFolderPath = env.HomeFolder.Replace('/', '\\');
-        }
-        catch(ExpectedException ex)
-        {
-            Log.Error("HomeScreenViewModel OnUsbTransportButton() GetEnvironment failed.");
-            Log.Warn("[{0}] {1}", ex.ErrCode, ex.Message);
-        }
-        catch
-        {
-            _appStateService.StateType = MainStateType.Normal;
-            throw;
-        }
-
-        try
-        {
 #if DEMO_PROC
-            var meshFolderPath = $@"{homeFolderPath}\Model";
+      var meshFolderPath = $@"{homeFolderPath}\Model";
 #else
             var meshFolderPath = ThProc.ExecuteGetMeshFolder(transport.Patient.StudyUID, transport.TransportType);
             if (meshFolderPath == "")
@@ -633,232 +637,319 @@ public partial class HomeScreenViewModels : ObservableObject, IDisposable
             meshFolderPath = meshFolderPath.Replace('/', '\\');
 #endif
 
-            var dispMessage = MessageService.GetMessage(FolderPusherResult.BatchFileNotExists);
-            if (FolderPusherService.BatchFileExists(homeFolderPath))                
-            {
-                dispMessage = MessageService.GetMessage(FolderPusherResult.SourceFileNotFound);
-                if (Directory.Exists(meshFolderPath))
-                {
-                    var poolingTask = FolderPusherService.PushFolderToDeviceAsync(
-                        homeFolderPath,
-                        meshFolderPath,
-                        transport.TransportType,
-                        onSuccess: new Action(() => { WeakReferenceMessenger.Default.Send<CloseMessage>(); }),
-                        onFailed: new Action(() => { WeakReferenceMessenger.Default.Send<CloseMessage>(); }));
-
-                    var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgUSBDataTransfer);
-                    _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.ProgressDeterminate)
-                    {
-                        MessageLines = [new(dlgMessage)],
-                    });
-                    FolderPusherService.KillProcess();
-
-                    var poolingResult = await poolingTask;
-
-                    dispMessage = MessageService.GetMessage(poolingResult);
-                }
-            }
-
-            _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
-            {
-                MessageLines = [new(dispMessage)],
-            });
-
-        }
-        catch (Exception ex)
+      var dispMessage = MessageService.GetMessage(FolderPusherResult.BatchFileNotExists);
+      if (FolderPusherService.BatchFileExists(homeFolderPath))
+      {
+        dispMessage = MessageService.GetMessage(FolderPusherResult.SourceFileNotFound);
+        if (Directory.Exists(meshFolderPath))
         {
-            Log.Warn(ex.Message);
-            throw;
-        }
-        finally
-        {
-            _appStateService.StateType = MainStateType.Normal;
-            FolderPusherService.KillProcess();
-        }
-    }
+          var poolingTask = FolderPusherService.PushFolderToDeviceAsync(
+              homeFolderPath,
+              meshFolderPath,
+              transport.TransportType,
+              onSuccess: new Action(() => { WeakReferenceMessenger.Default.Send<CloseMessage>(); }),
+              onFailed: new Action(() => { WeakReferenceMessenger.Default.Send<CloseMessage>(); }));
 
-    public IAsyncRelayCommand OnDeleteTransportListButtonCommand { get; }
-    private async Task OnDeleteTransportListButton()
-    {
-        if (TransportSelectedItem == null) return;
-        var transport = TransportSelectedItem;
-
-        var cts = new CancellationTokenSource();
-        var pollingResult = new ThProcCmdStatus();
-        try
-        {
-            var poolingTask = ThProc.ExecuteOutputRemoveCommand(
-                transport.Patient.StudyUID,
-                transport.TransportType,
-                out ThProcCmdOutput exportResult,
-                cts);
-
-            pollingResult = await poolingTask;
-
-        }
-        catch (WarningException ex)
-        {
-            Log.Warn("[{0}] {1}", ex.ErrCode, ex.Message);
-            throw;
-        }
-        finally
-        {
-            UpdateTransportList();
-        }
-
-        var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeletedTrasport);
-        var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
-        {
+          var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgUSBDataTransfer);
+          _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.ProgressDeterminate)
+          {
             MessageLines = [new(dlgMessage)],
-        };
-        _dialogService.ShowDialog(dialogVm);
+          });
+          FolderPusherService.KillProcess();
+
+          var poolingResult = await poolingTask;
+
+          dispMessage = MessageService.GetMessage(poolingResult);
+        }
+      }
+
+      _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dispMessage)],
+      });
+
     }
-    [RelayCommand]
-    private void TransportListContextMenu1()
+    catch (Exception ex)
     {
-        /*
-         * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
-         */
-        TransportListContextMenu1Dummy();
+      Log.Warn(ex.Message);
+      throw;
     }
-    private async void TransportListContextMenu1Dummy()
+    finally
     {
-        await OnUsbTransportButton();
+      _appStateService.StateType = MainStateType.Normal;
+      FolderPusherService.KillProcess();
+    }
+  }
+
+  public IAsyncRelayCommand OnDeleteTransportListButtonCommand { get; }
+  private async Task OnDeleteTransportListButton()
+  {
+    if (TransportSelectedItem == null) return;
+    var transport = TransportSelectedItem;
+
+    var cts = new CancellationTokenSource();
+    var pollingResult = new ThProcCmdStatus();
+    try
+    {
+      var poolingTask = ThProc.ExecuteOutputRemoveCommand(
+          transport.Patient.StudyUID,
+          transport.TransportType,
+          out ThProcCmdOutput exportResult,
+          cts);
+
+      pollingResult = await poolingTask;
+
+    }
+    catch (WarningException ex)
+    {
+      Log.Warn("[{0}] {1}", ex.ErrCode, ex.Message);
+      throw;
+    }
+    finally
+    {
+      UpdateTransportList();
     }
 
-    [RelayCommand]
-    private void TransportListContextMenu2()
+    var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgDeletedTrasport);
+    var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
     {
-        /*
-         * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
-         */
-        TransportListContextMenu2Dummy();
-    }
-    private async void TransportListContextMenu2Dummy()
+      MessageLines = [new(dlgMessage)],
+    };
+    _dialogService.ShowDialog(dialogVm);
+  }
+  [RelayCommand]
+  private void TransportListContextMenu1()
+  {
+    /*
+     * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
+     */
+    TransportListContextMenu1Dummy();
+  }
+  private async void TransportListContextMenu1Dummy()
+  {
+    await OnUsbTransportButton();
+  }
+
+  [RelayCommand]
+  private void TransportListContextMenu2()
+  {
+    /*
+     * CTデータリストのコンテキストメニュー(1段目)の処理はここに記述します。
+     */
+    TransportListContextMenu2Dummy();
+  }
+  private async void TransportListContextMenu2Dummy()
+  {
+    await OnDeleteTransportListButton();
+  }
+
+  // ★ 変更: RelayCommand を async Task にして警告を解消しつつ、一括実行に変更
+  [RelayCommand]
+  private async Task XRealButton()
+  {
+    await QuickTransferAsync(CTDataTransportType.Xreal);
+  }
+
+  // ★ 変更: RelayCommand を async Task にして警告を解消しつつ、一括実行に変更
+  [RelayCommand]
+  private async Task XRealiPhoneButton()
+  {
+    await QuickTransferAsync(CTDataTransportType.iPhone); // 表示は iPad、列挙名は iPhone のまま
+  }
+
+  /// <summary>
+  /// 変換(OutputAdd)→転送(USB)までを一括実行。
+  /// 中央の「XREAL / iPad」ボタンから呼ばれる。
+  /// </summary>
+  private async Task QuickTransferAsync(CTDataTransportType type)
+  {
+    if (SelectedItem == null)
     {
-        await OnDeleteTransportListButton();
+      _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new("患者データを選択してください。")]
+      });
+      return;
     }
 
-    [RelayCommand]
-    private void XRealButton()
+    var prevState = _appStateService.StateType;
+    _appStateService.StateType = type switch
     {
-        _appStateService.StateType = MainStateType.Xreal;
-        ExecuteTransportEvent(CTDataTransportType.Xreal);
-        _appStateService.StateType = MainStateType.Normal;
-    }
+      CTDataTransportType.Xreal => MainStateType.Xreal,
+      CTDataTransportType.iPhone => MainStateType.XrealiPhone,
+      CTDataTransportType.XrealIPhone => MainStateType.XrealiPhone,
+      _ => MainStateType.Normal
+    };
 
-    [RelayCommand]
-    private void XRealiPhoneButton()
+    try
     {
-        _appStateService.StateType = MainStateType.XrealiPhone;
-        ExecuteTransportEvent(CTDataTransportType.XrealIPhone);
-        _appStateService.StateType = MainStateType.Normal;
-    }
-
-    async void ExecuteTransportEvent(CTDataTransportType type)
-    {
-        if (SelectedItem == null) return;
-        var trgetPatient = SelectedItem;
-
-        var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgTransportCreating);
-        var dialogVm = new GenericDialogViewModel(DialogPreset.ProgressCancelable)
+      // 1) 転送用データ作成
+      var cts = new CancellationTokenSource();
+      try
+      {
+        var creatingMsg = MessageService.GetMessage(MessageCode.DlgMsgTransportCreating);
+        var creatingDlg = new GenericDialogViewModel(DialogPreset.ProgressCancelable)
         {
-            MessageLines = [new(dlgMessage)],
+          MessageLines = [new(creatingMsg)],
+          CancelAction = new Action(() => cts.Cancel())
         };
 
-        var cts = new CancellationTokenSource();
-        try
-        {
-            var poolingTask = ThProc.ExecuteOutputAddCommand(
-                trgetPatient.StudyUID,
-                type,
-                out ThProcCmdOutput exportResult,
-                cts,
-                onProgress: statusResult => { WeakReferenceMessenger.Default.Send<ProgressUpdateMessage>(new(statusResult.CmdProgress)); },
-                onSucceeded: statusResult => { WeakReferenceMessenger.Default.Send<CloseMessage>(); });
+        var poolingTask = ThProc.ExecuteOutputAddCommand(
+            SelectedItem.StudyUID,
+            type,
+            out ThProcCmdOutput exportResult,
+            cts,
+            onProgress: status => { WeakReferenceMessenger.Default.Send(new ProgressUpdateMessage(status.CmdProgress)); },
+            onSucceeded: _ => { WeakReferenceMessenger.Default.Send(new CloseMessage()); });
 
-            if (poolingTask.Status <= TaskStatus.Running)
+        if (poolingTask.Status <= TaskStatus.Running)
+        {
+          _dialogService.ShowDialog(creatingDlg);
+        }
+
+        await poolingTask;
+      }
+      catch (OperationCanceledException)
+      {
+        Log.Info("OutputAdd canceled.");
+        WeakReferenceMessenger.Default.Send(new CloseMessage());
+        return;
+      }
+
+      // 2) 端末転送
+      string homeFolderPath = "";
+      try
+      {
+        ThProc.GetEnvironment(out var env);
+        homeFolderPath = env.HomeFolder.Replace('/', '\\');
+      }
+      catch (ExpectedException ex)
+      {
+        Log.Error("QuickTransfer: GetEnvironment failed. [{0}] {1}", ex.ErrCode, ex.Message);
+        _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+        {
+          MessageLines = [new("環境の取得に失敗しました。転送を中断します。")]
+        });
+        return;
+      }
+
+      string meshFolderPath;
+#if DEMO_PROC
+      meshFolderPath = $@"{homeFolderPath}\Model";
+#else
+            meshFolderPath = ThProc.ExecuteGetMeshFolder(SelectedItem.StudyUID, type);
+            if (string.IsNullOrEmpty(meshFolderPath))
             {
-                _dialogService.ShowDialog(dialogVm);
+                ThProc.GetLastError(out var errCode, out var errMessage);
+                Log.Warn("[{0}] {1}", errCode, errMessage);
             }
+            meshFolderPath = meshFolderPath.Replace('/', '\\');
+#endif
 
-            await poolingTask;
-
-        }
-        catch (Exception ex)
+      string dispMessage = MessageService.GetMessage(FolderPusherResult.BatchFileNotExists);
+      if (FolderPusherService.BatchFileExists(homeFolderPath))
+      {
+        dispMessage = MessageService.GetMessage(FolderPusherResult.SourceFileNotFound);
+        if (Directory.Exists(meshFolderPath))
         {
-            Log.Warn(ex.Message);
-            throw;
+          var poolingTask = FolderPusherService.PushFolderToDeviceAsync(
+              homeFolderPath,
+              meshFolderPath,
+              type,
+              onSuccess: new Action(() => { WeakReferenceMessenger.Default.Send(new CloseMessage()); }),
+              onFailed: new Action(() => { WeakReferenceMessenger.Default.Send(new CloseMessage()); })
+          );
+
+          var dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgUSBDataTransfer);
+          _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.ProgressDeterminate)
+          {
+            MessageLines = [new(dlgMessage)]
+          });
+
+          FolderPusherService.KillProcess();
+
+          var result = await poolingTask;
+          dispMessage = MessageService.GetMessage(result);
         }
+      }
 
-        UpdateTransportList();
+      _dialogService.ShowDialog(new GenericDialogViewModel(DialogPreset.CloseOnly)
+      {
+        MessageLines = [new(dispMessage)]
+      });
 
-        dlgMessage = MessageService.GetMessage(MessageCode.DlgMsgTransportCreated);
-        dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly)
-        {
-            MessageLines = [new(dlgMessage)],
-        };
-        var result = _dialogService.ShowDialog(dialogVm);
+      UpdateTransportList();
     }
-
-    [RelayCommand]
-    private void VersionInformationButton()
+    catch (Exception ex)
     {
-        var preStatus = _appStateService.StateType;
-        _appStateService.StateType = MainStateType.Version;
-
-        Log.Info("VersionInformationButton");
-
-        var thickness = new Thickness(100, 0, 0, 0);
-
-        try
-        {
-            var messages = new ObservableCollection<MessageLine>();
-
-            ThProc.GetEnvironment(out var output);
-            var lines = output.ModelVers.Split('\n');
-
-            foreach (string line in lines)
-            {
-                var temp = line.TrimEnd('\r');
-                var columns = temp.Split(':');
-                if (columns.Length >= 2) messages.Add(new(columns[0], columns[1], thickness));
-                else messages.Add(new(columns[0]));
-            }
-
-            var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly, messages)
-            {
-                MessageLines = messages,
-            };
-            _dialogService.ShowDialog(dialogVm);
-        }
-        catch (ExpectedException ex)
-        {
-            throw new WarningException(ex.ErrCode, ex.Message);
-        }
-        finally
-        {
-            _appStateService.StateType = preStatus;
-        }
-
+      Log.Warn(ex.Message);
+      throw;
     }
-
-    [RelayCommand]
-    private void SettingClose()
+    finally
     {
-        IsSettingOpen = false;
+      _appStateService.StateType = prevState;
+      FolderPusherService.KillProcess();
+    }
+  }
+
+  [RelayCommand]
+  private void VersionInformationButton()
+  {
+    var preStatus = _appStateService.StateType;
+    _appStateService.StateType = MainStateType.Version;
+
+    Log.Info("VersionInformationButton");
+
+    var thickness = new Thickness(100, 0, 0, 0);
+
+    try
+    {
+      var messages = new ObservableCollection<MessageLine>();
+
+      ThProc.GetEnvironment(out var output);
+      var lines = output.ModelVers.Split('\n');
+
+      foreach (string line in lines)
+      {
+        var temp = line.TrimEnd('\r');
+        var columns = temp.Split(':');
+        if (columns.Length >= 2) messages.Add(new(columns[0], columns[1], thickness));
+        else messages.Add(new(columns[0]));
+      }
+
+      var dialogVm = new GenericDialogViewModel(DialogPreset.CloseOnly, messages)
+      {
+        MessageLines = messages,
+      };
+      _dialogService.ShowDialog(dialogVm);
+    }
+    catch (ExpectedException ex)
+    {
+      throw new WarningException(ex.ErrCode, ex.Message);
+    }
+    finally
+    {
+      _appStateService.StateType = preStatus;
     }
 
-    [RelayCommand]
-    private void SettingButton(object parameter)
-    {
-        IsSettingOpen = true;
-    }
+  }
 
-    public void Dispose()
-    {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        _appStateService.PropertyChanged -= OnAppStateChanged;
-        GC.SuppressFinalize(this);
-    }
+  [RelayCommand]
+  private void SettingClose()
+  {
+    IsSettingOpen = false;
+  }
+
+  [RelayCommand]
+  private void SettingButton(object parameter)
+  {
+    IsSettingOpen = true;
+  }
+
+  public void Dispose()
+  {
+    WeakReferenceMessenger.Default.UnregisterAll(this);
+    _appStateService.PropertyChanged -= OnAppStateChanged;
+    GC.SuppressFinalize(this);
+  }
 }

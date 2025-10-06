@@ -40,6 +40,14 @@ enum eProcStatus
 	eProcStatus_Xreal = 8,
 	eProcStatus_iPhone = 16,
 };
+//#30_add_PositionalCT
+enum ePositionalCT
+{
+	ThLibPositionalCT_Supine = 0,	    //仰臥位
+	ThLibPositionalCT_Left_Decubitus,   //1	    //左側臥位
+	ThLibPositionalCT_Right_Decubitus,  //2     //右側臥位
+	ThLibPositionalCT_Prone,			//3		//腹臥位
+};
 /// <summary>
 /// 
 /// </summary>
@@ -58,6 +66,7 @@ public:
 		wchar_t m_SerialNumber[128];//#215_added_SN
 		int m_3DModelAlpha;
 		int m_DegRotation3D;//#17_XYRotation 側臥位用に90°回転,表示に３D回転の角度指定。（単位°）
+		int m_UseSingleSeries;// #235_Use_SingleSeries 
 		//#23_added_thoracentes_needl
 		int		m_NeedleOn;		//穿刺ルートの表示・非表示
 		int		m_NeedleLength; //穿刺針の長さ
@@ -94,7 +103,8 @@ virtual bool cancelCmd(eCoreLibThreadType cmd) = 0;
 virtual bool getConfig(ThPCCoreLibConfig &config) = 0;
 virtual bool importCDROMData(const wchar_t*folder_name=nullptr, bool async = true) = 0;
 virtual const char*getCurrentStudyUID(void) const = 0;
-virtual bool runAISegmentator(const char* studyUID = nullptr, bool async = true) = 0;
+//#30_add_PositionalCT
+virtual bool runAISegmentator(const char* studyUID = nullptr, bool async = true, ePositionalCT pos= ThLibPositionalCT_Supine) = 0;
 virtual bool outputMesh(const char* studyUID = nullptr, bool glbOnly = true, bool async = true) = 0;
 //#13_Setup_CT_Marker_Manual
 virtual bool setupCTMarker(double P3D_1[3], double P3D_2[3], double P3D_3[3], const char* studyUID = nullptr, bool async = true) = 0;

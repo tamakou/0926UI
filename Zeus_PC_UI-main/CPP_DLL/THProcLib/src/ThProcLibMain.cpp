@@ -802,10 +802,11 @@ public:
 		{
 			wchar_t  time_str[128];
 			{
+				time_t now;
+				time(&now);
 				struct tm when;
-				time_t tme = time(NULL);
-				localtime_s(&when, &tme);
-				//	when = *localtime(&tme);
+				localtime_s(&when, &now);
+			 
 				int year = when.tm_year + 1900;
 				int mon = when.tm_mon + 1;
 				int day = when.tm_mday;

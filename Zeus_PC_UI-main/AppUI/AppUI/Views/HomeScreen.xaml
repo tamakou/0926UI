@@ -17,12 +17,15 @@
                 <RowDefinition Height="6*"/>
             </Grid.RowDefinitions>
 
+            <!-- ヘッダー -->
             <ContentControl Grid.Row="0" Margin="0,10" Content="{Binding HedaerControl}"/>
 
+            <!-- 進行ステップ -->
             <Grid Grid.Row="1">
                 <ContentControl Content="{Binding StateProgressViewModel}" />
             </Grid>
 
+            <!-- 本体 3カラム： [新規] [マーカ・関心領域(中央リスト)] [端末への転送(専用ボタン群)] -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.2*"/>
@@ -38,15 +41,20 @@
                     <RowDefinition Height="1*"/>
                     <RowDefinition Height="3*"/>
                 </Grid.RowDefinitions>
+
+                <!-- 左：新規データ追加 -->
                 <Button 
                     Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Width="237" Height="96"
                     Style="{StaticResource RoundedButtonStyle}"
                     Tag="{Binding ActiveNewDataStatus}"
                     Command="{Binding OnNewDataButtonCommand}">新規データ追加</Button>
-                <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="2" 
-                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
+                <!-- 左⇔中央のアイコン -->
+                <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="2" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                <!-- 中央：患者（3D/STL）リスト -->
                 <ListView
                     Grid.Row="0" Grid.Column="3" 
                     ItemsSource="{Binding PatientList}"
@@ -59,9 +67,9 @@
                                 <Setter.Value>
                                     <ContextMenu>
                                         <MenuItem Header="開く"
-                                            Command="{Binding PlacementTarget.Tag.CTDataListContextMenu1Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
+                                                  Command="{Binding PlacementTarget.Tag.CTDataListContextMenu1Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
                                         <MenuItem Header="削除"
-                                            Command="{Binding PlacementTarget.Tag.CTDataListContextMenu2Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
+                                                  Command="{Binding PlacementTarget.Tag.CTDataListContextMenu2Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
                                     </ContextMenu>
                                 </Setter.Value>
                             </Setter>
@@ -82,14 +90,16 @@
                             <GridViewColumn Header="生年月日" DisplayMemberBinding="{Binding Birthday}" />
                             <GridViewColumn Header="年齢" DisplayMemberBinding="{Binding Age}" />
                             <GridViewColumn Header="性別" DisplayMemberBinding="{Binding Gender}" />
-                            <GridViewColumn Header="症例" DisplayMemberBinding="{Binding StudyPattern}" />
+                            <!-- 症例は非表示要件により削除 -->
+                            <!-- <GridViewColumn Header="症例" DisplayMemberBinding="{Binding StudyPattern}" /> -->
                             <GridViewColumn Header="マーカ関心領域" DisplayMemberBinding="{Binding ProcessStatus}" />
                         </GridView>
                     </ListView.View>
                 </ListView>
 
+                <!-- 中央下：操作ボタン -->
                 <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="3" 
-                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Grid Grid.Row="2"  Grid.Column="3" HorizontalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -109,90 +119,43 @@
                     <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,10,0,0" Command="{Binding CTDataListAllDeleteButtonCommand}">一括削除</Button>
                 </Grid>
 
-                <StackPanel Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button 
-                        Style="{StaticResource TriangleButton}"
-                        Tag="{Binding ActiveXrealStatus}"
-                        Command="{Binding XRealButtonCommand}">
-                        <StackPanel Margin="8,40,0,0">
-                            <TextBlock Style="{StaticResource TextBlockBase}" HorizontalAlignment="Left">XREAL</TextBlock>
-                        </StackPanel>
-                    </Button>
-                    <Button 
-                        Margin="0,32,0,0"
-                        Style="{StaticResource TriangleButton}"
-                        Tag="{Binding ActiveXrealiPhoneStatus}"
-                        Command="{Binding XRealiPhoneButtonCommand}">
-                        <StackPanel Margin="8,25,0,0">
-                            <TextBlock Style="{StaticResource TextBlockBase}" HorizontalAlignment="Left">XREAL</TextBlock>
-                            <TextBlock Style="{StaticResource TextBlockBase}" HorizontalAlignment="Left">iPhone</TextBlock>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+       <!-- ★右：端末への転送（専用ボタン方式・四角＆中央寄せ） -->
+<StackPanel Grid.Row="0" Grid.Column="5"
+            HorizontalAlignment="Center" VerticalAlignment="Center">
 
-                <ListView
-                    Grid.Row="0" Grid.Column="5"
-                    ItemsSource="{Binding TransportList}"
-                    SelectedItem="{Binding TransportSelectedItem}"
-                    SelectionMode="Single">
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Tag" Value="{Binding Path=DataContext, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListView}}}"/>
-                            <Setter Property="ContextMenu">
-                                <Setter.Value>
-                                    <ContextMenu>
-                                        <MenuItem Header="転送"
-                                        Command="{Binding PlacementTarget.Tag.TransportListContextMenu1Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
-                                        <MenuItem Header="削除"
-                                        Command="{Binding PlacementTarget.Tag.TransportListContextMenu2Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
-                                    </ContextMenu>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.View>
-                        <GridView AllowsColumnReorder="True">
-                            <GridViewColumn Header="撮影日" DisplayMemberBinding="{Binding Patient.StudyDateTime}" >
-                                <GridViewColumn.HeaderContainerStyle>
-                                    <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource {x:Type GridViewColumnHeader}}">
-                                        <Setter Property="Tag" Value="Patient.StudyDateTime"/>
-                                        <EventSetter Event="Click" Handler="TransportListColumnHeader_Click"/>
-                                    </Style>
-                                </GridViewColumn.HeaderContainerStyle>
-                            </GridViewColumn>
-                            <GridViewColumn Header="患者ID" DisplayMemberBinding="{Binding Patient.PatientID}" />
-                            <GridViewColumn Header="患者名" DisplayMemberBinding="{Binding Patient.PatientName}" />
-                            <GridViewColumn Header="生年月日" DisplayMemberBinding="{Binding Patient.Birthday}" />
-                            <GridViewColumn Header="年齢" DisplayMemberBinding="{Binding Patient.Age}" />
-                            <GridViewColumn Header="性別" DisplayMemberBinding="{Binding Patient.Gender}" />
-                            <GridViewColumn Header="症例" DisplayMemberBinding="{Binding Patient.StudyPattern}" />
-                            <GridViewColumn Header="転送ファイル" DisplayMemberBinding="{Binding TransportType}" />
-                        </GridView>
-                    </ListView.View>
-                </ListView>
+  <!-- XREAL -->
+  <Button Width="237" Height="96"
+          Style="{StaticResource RoundedButtonStyle}"  
+          Tag="{Binding ActiveXrealStatus}"
+          Command="{Binding XRealButtonCommand}">
+    <TextBlock Style="{StaticResource TextBlockBase}"
+               Text="XREAL"
+               HorizontalAlignment="Center" TextAlignment="Center"/> <!-- ← テキスト中央 -->
+  </Button>
 
-                <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="5" 
-                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <Grid Grid.Row="2"  Grid.Column="5" HorizontalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition/>
-                        <RowDefinition/>
-                    </Grid.RowDefinitions>
+  <!-- iPad -->
+  <Button Margin="0,32,0,0"
+          Width="237" Height="96"
+          Style="{StaticResource RoundedButtonStyle}"   
+          Tag="{Binding ActiveXrealiPhoneStatus}"
+          Command="{Binding XRealiPhoneButtonCommand}">
+    <TextBlock Style="{StaticResource TextBlockBase}"
+               Text="iPad"
+               HorizontalAlignment="Center" TextAlignment="Center"/> <!-- ← テキスト中央 -->
+  </Button>
 
-                    <Button Grid.Row="0" Grid.Column="0" Margin="0,0,30,10" 
-                            Style="{StaticResource OptionButton}"
-                            Tag="{Binding ActiveUsbTransportStatus}"
-                            Command="{Binding OnUsbTransportButtonCommand}">USB転送</Button>
-                    <Button Grid.Row="0" Grid.Column="1" Margin="30,0,0,10"
-                            Style="{StaticResource OptionButton}" 
-                            Command="{Binding OnDeleteTransportListButtonCommand}">削除</Button>
-                </Grid>
+</StackPanel>
+
+
+                <!-- （旧）右：転送リスト + USB転送/削除 は撤去 -->
+                <!--
+                <ListView Grid.Row="0" Grid.Column="5" ...> ... </ListView>
+                <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="5" .../>
+                <Grid Grid.Row="2" Grid.Column="5" ...> USB転送 / 削除 ... </Grid>
+                -->
             </Grid>
 
+            <!-- 設定ポップアップ -->
             <DockPanel Grid.Row="4" LastChildFill="False">
                 <Button
                     x:Name="SettingButton"
@@ -217,17 +180,17 @@
                                     <RowDefinition Height="2*"/>
                                 </Grid.RowDefinitions>
                                 <Button HorizontalAlignment="Right"
-                                    Width="40" 
-                                    Background="Transparent" BorderBrush="Transparent"
-                                    Command="{Binding SettingCloseCommand}">
+                                        Width="40" 
+                                        Background="Transparent" BorderBrush="Transparent"
+                                        Command="{Binding SettingCloseCommand}">
                                     <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                Text="&#xE8BB;"
-                                                VerticalAlignment="Center"/>
+                                               Text="&#xE8BB;"
+                                               VerticalAlignment="Center"/>
                                 </Button>
                                 <Button Grid.Row="1" Margin="5"
-                                    Style="{StaticResource RoundedButtonStyle}"
-                                    Tag="{Binding ActiveVersionStatus}"
-                                    Command="{Binding VersionInformationButtonCommand}">
+                                        Style="{StaticResource RoundedButtonStyle}"
+                                        Tag="{Binding ActiveVersionStatus}"
+                                        Command="{Binding VersionInformationButtonCommand}">
                                     <StackPanel>
                                         <TextBlock HorizontalAlignment="Center">バージョン</TextBlock>
                                         <TextBlock HorizontalAlignment="Center">情報</TextBlock>

@@ -818,7 +818,43 @@ int CThProcMainSys::exe_cmd_AiSegmentator(const ThProcLib_Cmd* cmd, ThProcLib_Cm
 	std::string study_uid = ThStringUtils::_convertStr(cmd->strParam1);
 
 	CThProcMain::exe_cmd_async(cmd, cmd_ret);
-	m_PcCoreLib->runAISegmentator(study_uid.c_str(), true/*async*/);
+	//#231_added_decubitus
+	int pos_in = cmd->intParam;
+	std::wstring pos_name;
+	ThPCCoreLib::ePositionalCT seg_pos;
+	bool bInvalidPos = false;
+	switch (pos_in) {
+	case ThLibPositionalCT_Supine:	    //‹Â‰çˆÊ
+		seg_pos = ThPCCoreLib::ThLibPositionalCT_Supine;
+		pos_name = L"Supine";
+		break;
+	case ThLibPositionalCT_Left_Decubitus:   //1	    //¶‘¤‰çˆÊ
+		seg_pos = ThPCCoreLib::ThLibPositionalCT_Left_Decubitus;
+		pos_name = L"Left Decubitus";
+		break;
+	case ThLibPositionalCT_Right_Decubitus:  //2     //‰E‘¤‰çˆÊ
+		seg_pos = ThPCCoreLib::ThLibPositionalCT_Right_Decubitus;
+		pos_name = L"Right Decubitus";
+		break;
+	
+	case ThLibPositionalCT_Prone:
+	//	seg_pos = ThPCCoreLib::ThLibPositionalCT_Prone;
+		pos_name = L"Prone";
+		bInvalidPos = true;
+		
+		break;
+	default:
+		pos_name = L"Unknown PositionalCT ";
+		bInvalidPos = true;
+		break;
+	}
+	LogMessage(L"PositionalCT %s  \n", pos_name.c_str());
+
+	if (bInvalidPos) {
+		setupLastError(ThProcLibErrorCode::ThDllErr_InvalidPositionalCT);
+		return TH_LIB_EXIT_FAILURE;
+	}
+	m_PcCoreLib->runAISegmentator(study_uid.c_str(), true/*async*/, seg_pos);
 
 	m_thread_cmd_async.m_proc_hdr.reset(new CMyUpdateAiSegProc(this, cmd_ret->cmdID,cmd_ret->cmdUID, m_AiSeg_timeout_sec));
 	m_thread_cmd_async.m_theExe.reset(new CMultiThExe(1, m_thread_cmd_async.m_proc_hdr.get()));
