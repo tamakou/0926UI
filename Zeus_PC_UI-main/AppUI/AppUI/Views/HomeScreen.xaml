@@ -25,7 +25,7 @@
                 <ContentControl Content="{Binding StateProgressViewModel}" />
             </Grid>
 
-            <!-- 本体 3カラム： [新規] [マーカ・関心領域(中央リスト)] [端末への転送(専用ボタン群)] -->
+            <!-- 本体 3カラム： [新規] [リスト] [端末への転送] -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="0.2*"/>
@@ -48,9 +48,11 @@
                     Width="237" Height="96"
                     Style="{StaticResource RoundedButtonStyle}"
                     Tag="{Binding ActiveNewDataStatus}"
-                    Command="{Binding OnNewDataButtonCommand}">新規データ追加</Button>
+                    Command="{Binding OnNewDataButtonCommand}">
+                    新規データ追加
+                </Button>
 
-                <!-- 左⇔中央のアイコン -->
+                <!-- 左⇔中央のアイコン（右向き） -->
                 <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="2" 
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
@@ -90,14 +92,17 @@
                             <GridViewColumn Header="生年月日" DisplayMemberBinding="{Binding Birthday}" />
                             <GridViewColumn Header="年齢" DisplayMemberBinding="{Binding Age}" />
                             <GridViewColumn Header="性別" DisplayMemberBinding="{Binding Gender}" />
-                            <!-- 症例は非表示要件により削除 -->
-                            <!-- <GridViewColumn Header="症例" DisplayMemberBinding="{Binding StudyPattern}" /> -->
+                            <!-- 症例は非表示要件で削除済み -->
                             <GridViewColumn Header="マーカ関心領域" DisplayMemberBinding="{Binding ProcessStatus}" />
                         </GridView>
                     </ListView.View>
                 </ListView>
 
-                <!-- 中央下：操作ボタン -->
+                <!-- ★中央⇔右の三角（ご指定の赤三角の位置：列4） -->
+                <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="4" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                <!-- 中央下：操作ボタン（白字に統一：ボタンの Foreground(白) を継承） -->
                 <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="3" 
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 <Grid Grid.Row="2"  Grid.Column="3" HorizontalAlignment="Center">
@@ -109,53 +114,49 @@
                         <RowDefinition Height="1*"/>
                         <RowDefinition Height="1*"/>
                     </Grid.RowDefinitions>
+
                     <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource OptionButton}" Margin="0,0,30,10" Command="{Binding MarkerRoiButtonCommand}">
                         <StackPanel>
                             <TextBlock HorizontalAlignment="Center">マーカ</TextBlock>
                             <TextBlock HorizontalAlignment="Center">関心領域</TextBlock>
                         </StackPanel>
                     </Button>
-                    <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,0,0,10" Command="{Binding CTDataListSelectDeleteButtonCommand}">削除</Button>
-                    <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,10,0,0" Command="{Binding CTDataListAllDeleteButtonCommand}">一括削除</Button>
+
+                    <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,0,0,10" Command="{Binding CTDataListSelectDeleteButtonCommand}">
+                        削除
+                    </Button>
+                    <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,10,0,0" Command="{Binding CTDataListAllDeleteButtonCommand}">
+                        一括削除
+                    </Button>
                 </Grid>
 
-       <!-- ★右：端末への転送（専用ボタン方式・四角＆中央寄せ） -->
-<StackPanel Grid.Row="0" Grid.Column="5"
-            HorizontalAlignment="Center" VerticalAlignment="Center">
+                <!-- 右：端末への転送（白字に統一：ボタンの Foreground を継承） -->
+                <StackPanel Grid.Row="0" Grid.Column="5"
+                            HorizontalAlignment="Center" VerticalAlignment="Center">
 
-  <!-- XREAL -->
-  <Button Width="237" Height="96"
-          Style="{StaticResource RoundedButtonStyle}"  
-          Tag="{Binding ActiveXrealStatus}"
-          Command="{Binding XRealButtonCommand}">
-    <TextBlock Style="{StaticResource TextBlockBase}"
-               Text="XREAL"
-               HorizontalAlignment="Center" TextAlignment="Center"/> <!-- ← テキスト中央 -->
-  </Button>
+                    <!-- XREAL -->
+                    <Button Width="237" Height="96"
+                            Style="{StaticResource RoundedButtonStyle}"  
+                            Tag="{Binding ActiveXrealStatus}"
+                            Command="{Binding XRealButtonCommand}">
+                        <!-- TextBlockBase（黒文字化）を使わず、継承で白 -->
+                        <TextBlock Text="XREAL" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    </Button>
 
-  <!-- iPad -->
-  <Button Margin="0,32,0,0"
-          Width="237" Height="96"
-          Style="{StaticResource RoundedButtonStyle}"   
-          Tag="{Binding ActiveXrealiPhoneStatus}"
-          Command="{Binding XRealiPhoneButtonCommand}">
-    <TextBlock Style="{StaticResource TextBlockBase}"
-               Text="iPad"
-               HorizontalAlignment="Center" TextAlignment="Center"/> <!-- ← テキスト中央 -->
-  </Button>
+                    <!-- iPad -->
+                    <Button Margin="0,32,0,0"
+                            Width="237" Height="96"
+                            Style="{StaticResource RoundedButtonStyle}"   
+                            Tag="{Binding ActiveXrealiPhoneStatus}"
+                            Command="{Binding XRealiPhoneButtonCommand}">
+                        <TextBlock Text="iPad" HorizontalAlignment="Center" TextAlignment="Center"/>
+                    </Button>
 
-</StackPanel>
+                </StackPanel>
 
-
-                <!-- （旧）右：転送リスト + USB転送/削除 は撤去 -->
-                <!--
-                <ListView Grid.Row="0" Grid.Column="5" ...> ... </ListView>
-                <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="5" .../>
-                <Grid Grid.Row="2" Grid.Column="5" ...> USB転送 / 削除 ... </Grid>
-                -->
             </Grid>
 
-            <!-- 設定ポップアップ -->
+            <!-- 設定ポップアップ（ボタンはブランド色→白字） -->
             <DockPanel Grid.Row="4" LastChildFill="False">
                 <Button
                     x:Name="SettingButton"
@@ -164,7 +165,9 @@
                     Margin="10,10,0,10"
                     Command="{Binding SettingButtonCommand}"
                     CommandParameter="{Binding RelativeSource={RelativeSource Self}}"
-                    Tag="{Binding ActiveSettingStatus}">設定</Button>
+                    Tag="{Binding ActiveSettingStatus}">
+                    設定
+                </Button>
                 <Popup
                    IsOpen="{Binding IsSettingOpen, Mode=TwoWay}"
                    PlacementTarget="{Binding ElementName=SettingButton}"
@@ -179,6 +182,7 @@
                                     <RowDefinition Height="1*"/>
                                     <RowDefinition Height="2*"/>
                                 </Grid.RowDefinitions>
+                                <!-- クローズは透明ボタン（ここはブランド色ではない） -->
                                 <Button HorizontalAlignment="Right"
                                         Width="40" 
                                         Background="Transparent" BorderBrush="Transparent"
