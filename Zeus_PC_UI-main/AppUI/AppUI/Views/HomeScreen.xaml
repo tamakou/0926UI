@@ -1,210 +1,396 @@
 ﻿<UserControl x:Class="AppUI.Views.HomeScreen"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:AppUI.Views"
              xmlns:vm="clr-namespace:AppUI.ViewModels"
              mc:Ignorable="d"
              Background="{StaticResource BackBrush}"
-             d:DesignHeight="450" d:DesignWidth="800">
-    <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
-        <Grid Width="1920" Height="1080">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="6*"/>
-                <RowDefinition Height="5*"/>
-                <RowDefinition Height="50*"/>
-                <RowDefinition Height="6*"/>
-            </Grid.RowDefinitions>
+             d:DesignHeight="1080" d:DesignWidth="1920">
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#F9FBFF" Offset="0"/>
+                <GradientStop Color="#E9F1FF" Offset="0.55"/>
+                <GradientStop Color="#F2F6FB" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <!-- ヘッダー -->
-            <ContentControl Grid.Row="0" Margin="0,10" Content="{Binding HedaerControl}"/>
-
-            <!-- 進行ステップ -->
-            <Grid Grid.Row="1">
-                <ContentControl Content="{Binding StateProgressViewModel}" />
-            </Grid>
-
-            <!-- 本体 3カラム： [新規] [リスト] [端末への転送] -->
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="0.2*"/>
-                    <ColumnDefinition Width="3*"/>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="3*"/>
-                    <ColumnDefinition Width="1*"/>
-                    <ColumnDefinition Width="3*"/>
-                    <ColumnDefinition Width="0.2*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="8*"/>
-                    <RowDefinition Height="1*"/>
-                    <RowDefinition Height="3*"/>
-                </Grid.RowDefinitions>
-
-                <!-- 左：新規データ追加 -->
-                <Button 
-                    Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Width="237" Height="96"
-                    Style="{StaticResource RoundedButtonStyle}"
-                    Tag="{Binding ActiveNewDataStatus}"
-                    Command="{Binding OnNewDataButtonCommand}">
-                    新規データ追加
-                </Button>
-
-                <!-- 左⇔中央のアイコン（右向き） -->
-                <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="2" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
-                <!-- 中央：患者（3D/STL）リスト -->
-                <ListView
-                    Grid.Row="0" Grid.Column="3" 
-                    ItemsSource="{Binding PatientList}"
-                    SelectedItem="{Binding SelectedItem}"
-                    SelectionMode="Single">
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Tag" Value="{Binding Path=DataContext, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListView}}}"/>
-                            <Setter Property="ContextMenu">
-                                <Setter.Value>
-                                    <ContextMenu>
-                                        <MenuItem Header="開く"
-                                                  Command="{Binding PlacementTarget.Tag.CTDataListContextMenu1Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
-                                        <MenuItem Header="削除"
-                                                  Command="{Binding PlacementTarget.Tag.CTDataListContextMenu2Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
-                                    </ContextMenu>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.View>
-                        <GridView AllowsColumnReorder="True">
-                            <GridViewColumn Header="撮影日" DisplayMemberBinding="{Binding StudyDateTime}">
-                                <GridViewColumn.HeaderContainerStyle>
-                                    <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource {x:Type GridViewColumnHeader}}">
-                                        <Setter Property="Tag" Value="StudyDateTime"/>
-                                        <EventSetter Event="Click" Handler="PatientListColumnHeader_Click"/>
-                                    </Style>
-                                </GridViewColumn.HeaderContainerStyle>
-                            </GridViewColumn>
-                            <GridViewColumn Header="患者ID" DisplayMemberBinding="{Binding PatientID}" />
-                            <GridViewColumn Header="患者名" DisplayMemberBinding="{Binding PatientName}" />
-                            <GridViewColumn Header="生年月日" DisplayMemberBinding="{Binding Birthday}" />
-                            <GridViewColumn Header="年齢" DisplayMemberBinding="{Binding Age}" />
-                            <GridViewColumn Header="性別" DisplayMemberBinding="{Binding Gender}" />
-                            <!-- 症例は非表示要件で削除済み -->
-                            <GridViewColumn Header="マーカ関心領域" DisplayMemberBinding="{Binding ProcessStatus}" />
-                        </GridView>
-                    </ListView.View>
-                </ListView>
-
-                <!-- ★中央⇔右の三角（ご指定の赤三角の位置：列4） -->
-                <Label Style="{StaticResource DoubleTriangleIcon}" Grid.Row="0" Grid.Column="4" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-
-                <!-- 中央下：操作ボタン（白字に統一：ボタンの Foreground(白) を継承） -->
-                <Label Style="{StaticResource DownTriangleIcon}" Grid.Row="1" Grid.Column="3" 
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                <Grid Grid.Row="2"  Grid.Column="3" HorizontalAlignment="Center">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="1*"/>
-                        <RowDefinition Height="1*"/>
-                    </Grid.RowDefinitions>
-
-                    <Button Grid.Row="0" Grid.Column="0" Style="{StaticResource OptionButton}" Margin="0,0,30,10" Command="{Binding MarkerRoiButtonCommand}">
-                        <StackPanel>
-                            <TextBlock HorizontalAlignment="Center">マーカ</TextBlock>
-                            <TextBlock HorizontalAlignment="Center">関心領域</TextBlock>
-                        </StackPanel>
-                    </Button>
-
-                    <Button Grid.Row="0" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,0,0,10" Command="{Binding CTDataListSelectDeleteButtonCommand}">
-                        削除
-                    </Button>
-                    <Button Grid.Row="1" Grid.Column="1" Style="{StaticResource OptionButton}" Margin="30,10,0,0" Command="{Binding CTDataListAllDeleteButtonCommand}">
-                        一括削除
-                    </Button>
-                </Grid>
-
-                <!-- 右：端末への転送（白字に統一：ボタンの Foreground を継承） -->
-                <StackPanel Grid.Row="0" Grid.Column="5"
-                            HorizontalAlignment="Center" VerticalAlignment="Center">
-
-                    <!-- XREAL -->
-                    <Button Width="237" Height="96"
-                            Style="{StaticResource RoundedButtonStyle}"  
-                            Tag="{Binding ActiveXrealStatus}"
-                            Command="{Binding XRealButtonCommand}">
-                        <!-- TextBlockBase（黒文字化）を使わず、継承で白 -->
-                        <TextBlock Text="XREAL" HorizontalAlignment="Center" TextAlignment="Center"/>
-                    </Button>
-
-                    <!-- iPad -->
-                    <Button Margin="0,32,0,0"
-                            Width="237" Height="96"
-                            Style="{StaticResource RoundedButtonStyle}"   
-                            Tag="{Binding ActiveXrealiPhoneStatus}"
-                            Command="{Binding XRealiPhoneButtonCommand}">
-                        <TextBlock Text="iPad" HorizontalAlignment="Center" TextAlignment="Center"/>
-                    </Button>
-
-                </StackPanel>
-
-            </Grid>
-
-            <!-- 設定ポップアップ（ボタンはブランド色→白字） -->
-            <DockPanel Grid.Row="4" LastChildFill="False">
+        <!-- Header & Settings -->
+        <Grid Grid.Row="0" Margin="48,36,48,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ContentControl Content="{Binding HedaerControl}" VerticalAlignment="Center"/>
+            <Grid Grid.Column="1">
                 <Button
                     x:Name="SettingButton"
-                    DockPanel.Dock="Left"
                     Style="{StaticResource RoundedButtonStyleShort}"
-                    Margin="10,10,0,10"
+                    Margin="0"
                     Command="{Binding SettingButtonCommand}"
                     CommandParameter="{Binding RelativeSource={RelativeSource Self}}"
                     Tag="{Binding ActiveSettingStatus}">
                     設定
                 </Button>
                 <Popup
-                   IsOpen="{Binding IsSettingOpen, Mode=TwoWay}"
-                   PlacementTarget="{Binding ElementName=SettingButton}"
-                   Placement="Top"
-                   StaysOpen="True" 
-                   VerticalOffset="-20"
-                   AllowsTransparency="True">
-                    <Grid Height="114" Width="160" Background="{StaticResource BackBrush}">
-                        <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="1*"/>
-                                    <RowDefinition Height="2*"/>
-                                </Grid.RowDefinitions>
-                                <!-- クローズは透明ボタン（ここはブランド色ではない） -->
-                                <Button HorizontalAlignment="Right"
-                                        Width="40" 
-                                        Background="Transparent" BorderBrush="Transparent"
-                                        Command="{Binding SettingCloseCommand}">
-                                    <TextBlock FontFamily="Segoe MDL2 Assets"
-                                               Text="&#xE8BB;"
-                                               VerticalAlignment="Center"/>
-                                </Button>
-                                <Button Grid.Row="1" Margin="5"
-                                        Style="{StaticResource RoundedButtonStyle}"
-                                        Tag="{Binding ActiveVersionStatus}"
-                                        Command="{Binding VersionInformationButtonCommand}">
-                                    <StackPanel>
-                                        <TextBlock HorizontalAlignment="Center">バージョン</TextBlock>
-                                        <TextBlock HorizontalAlignment="Center">情報</TextBlock>
-                                    </StackPanel>
-                                </Button>
-                            </Grid>
-                        </Border>
-                    </Grid>
+                    IsOpen="{Binding IsSettingOpen, Mode=TwoWay}"
+                    PlacementTarget="{Binding ElementName=SettingButton}"
+                    Placement="Bottom"
+                    StaysOpen="True"
+                    VerticalOffset="16"
+                    AllowsTransparency="True">
+                    <Border Style="{StaticResource CardBorderStyle}" Padding="20" Width="220">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Button HorizontalAlignment="Right"
+                                    Width="36"
+                                    Height="36"
+                                    Background="Transparent"
+                                    BorderBrush="Transparent"
+                                    Command="{Binding SettingCloseCommand}">
+                                <TextBlock FontFamily="Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           Foreground="{StaticResource SecondaryFontBrush}"
+                                           Text="&#xE8BB;"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"/>
+                            </Button>
+                            <Button Grid.Row="1"
+                                    Margin="0,16,0,0"
+                                    Style="{StaticResource RoundedButtonStyleShort}"
+                                    Tag="{Binding ActiveVersionStatus}"
+                                    Command="{Binding VersionInformationButtonCommand}">
+                                <StackPanel>
+                                    <TextBlock HorizontalAlignment="Center">バージョン</TextBlock>
+                                    <TextBlock HorizontalAlignment="Center">情報</TextBlock>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
                 </Popup>
-            </DockPanel>
+            </Grid>
         </Grid>
-    </Viewbox>
+
+        <!-- Workflow Progress -->
+        <Border Grid.Row="1" Margin="48,0,48,24" Style="{StaticResource CardBorderStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Step 1 -->
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <Border Width="68" Height="68" CornerRadius="34" BorderThickness="2" BorderBrush="Transparent">
+                        <Border.Background>
+                            <SolidColorBrush Color="#E1E8F6"/>
+                        </Border.Background>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#E1E8F6"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="18" ShadowDepth="0" Color="#4C6EF5" Opacity="0.25"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveNewDataStatus.IsActive}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource ButtonNormalBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="1" FontSize="28" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Label Margin="0,12,0,0" HorizontalContentAlignment="Center" Tag="{Binding ActiveNewDataStatus}">
+                        新規データ追加
+                    </Label>
+                </StackPanel>
+
+                <!-- Connector 1 -->
+                <Rectangle Grid.Column="1" VerticalAlignment="Center" Height="4" RadiusX="2" RadiusY="2">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle" BasedOn="{StaticResource StepConnector}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ActiveSetMarkerStateStatus.IsActive}" Value="True">
+                                    <Setter Property="Fill" Value="{StaticResource ButtonNormalBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+
+                <!-- Step 2 -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <Border Width="68" Height="68" CornerRadius="34" BorderThickness="2" BorderBrush="Transparent">
+                        <Border.Background>
+                            <SolidColorBrush Color="#E1E8F6"/>
+                        </Border.Background>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#E1E8F6"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="18" ShadowDepth="0" Color="#14B8A6" Opacity="0.25"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveSetMarkerStateStatus.IsActive}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ActiveSetRoiStateStatus.IsActive}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="2" FontSize="28" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="0,12,0,0" HorizontalAlignment="Center">
+                        <Label HorizontalContentAlignment="Center" Tag="{Binding ActiveSetMarkerStateStatus}">マーカ</Label>
+                        <Label HorizontalContentAlignment="Center" Tag="{Binding ActiveSetRoiStateStatus}">関心領域</Label>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Connector 2 -->
+                <Rectangle Grid.Column="3" VerticalAlignment="Center" Height="4" RadiusX="2" RadiusY="2">
+                    <Rectangle.Style>
+                        <Style TargetType="Rectangle" BasedOn="{StaticResource StepConnector}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ActiveTransportDataStatus.IsActive}" Value="True">
+                                    <Setter Property="Fill" Value="{StaticResource ButtonNormalBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+
+                <!-- Step 3 -->
+                <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                    <Border Width="68" Height="68" CornerRadius="34" BorderThickness="2" BorderBrush="Transparent">
+                        <Border.Background>
+                            <SolidColorBrush Color="#E1E8F6"/>
+                        </Border.Background>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#E1E8F6"/>
+                                <Setter Property="BorderBrush" Value="Transparent"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="18" ShadowDepth="0" Color="#2563EB" Opacity="0.25"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ActiveTransportDataStatus.IsActive}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource ButtonNormalBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="3" FontSize="28" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                    <Label Margin="0,12,0,0" HorizontalContentAlignment="Center" Tag="{Binding ActiveTransportDataStatus}">
+                        端末への転送
+                    </Label>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid Grid.Row="2" Margin="48,0,48,48">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2.2*"/>
+                <ColumnDefinition Width="5*"/>
+                <ColumnDefinition Width="2.8*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Column: New data -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Padding="40" Margin="0,0,32,0">
+                <StackPanel VerticalAlignment="Stretch">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource ButtonNormalBrush}">
+                            <TextBlock Text="&#xE7F8;" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Margin="16,0,0,0">
+                            <TextBlock Text="データ登録" FontSize="28" FontWeight="Bold" Foreground="{StaticResource FontBrush}"/>
+                            <TextBlock Text="CTやMRIなどの新しいボリュームデータを追加" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Border Background="{StaticResource SurfaceMutedBrush}" CornerRadius="20" Padding="24">
+                        <StackPanel>
+                            <TextBlock Text="ドラッグ &amp; ドロップ、またはファイル選択でインポート" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}" TextWrapping="Wrap"/>
+                            <Button Width="240" HorizontalAlignment="Left" Margin="0,12,0,0" Tag="{Binding ActiveNewDataStatus}" Command="{Binding OnNewDataButtonCommand}">
+                                新規データを追加
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Margin="0,20,0,0">
+                        <TextBlock Text="サポート形式" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}"/>
+                        <WrapPanel ItemHeight="26" ItemWidth="Auto" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left">
+                            <Border Background="#DCE7FF" Padding="10,4" CornerRadius="12" Margin="0,0,8,8">
+                                <TextBlock Text="DICOM" FontSize="14" Foreground="{StaticResource FontBrush}"/>
+                            </Border>
+                            <Border Background="#DCE7FF" Padding="10,4" CornerRadius="12" Margin="0,0,8,8">
+                                <TextBlock Text="STL" FontSize="14" Foreground="{StaticResource FontBrush}"/>
+                            </Border>
+                            <Border Background="#DCE7FF" Padding="10,4" CornerRadius="12" Margin="0,0,8,8">
+                                <TextBlock Text="OBJ" FontSize="14" Foreground="{StaticResource FontBrush}"/>
+                            </Border>
+                        </WrapPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Center Column: Patient list -->
+            <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}" Padding="36">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Center">
+                        <TextBlock Text="患者データ" FontSize="28" FontWeight="Bold" Foreground="{StaticResource FontBrush}"/>
+                        <Border Background="{StaticResource SurfaceMutedBrush}" CornerRadius="12" Padding="12,4" Margin="16,0,0,0">
+                            <TextBlock Text="3D/STL" FontSize="14" Foreground="{StaticResource SecondaryFontBrush}"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,12" Text="症例を選択して3Dビューやマーカ設定に移動します" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}"/>
+                    <Border Grid.Row="2" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="20" Padding="0">
+                        <ListView
+                            Margin="0"
+                            Padding="16"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            ItemsSource="{Binding PatientList}"
+                            SelectedItem="{Binding SelectedItem}"
+                            SelectionMode="Single">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Tag" Value="{Binding Path=DataContext, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListView}}}"/>
+                                    <Setter Property="Margin" Value="0,0,0,8"/>
+                                    <Setter Property="Padding" Value="12"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListViewItem">
+                                                <Border x:Name="border"
+                                                        CornerRadius="14"
+                                                        Background="Transparent"
+                                                        BorderBrush="Transparent"
+                                                        BorderThickness="1">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#ECF2FF"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="border" Property="Background" Value="#D9E5FF"/>
+                                                        <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource ButtonNormalBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Setter Property="ContextMenu">
+                                        <Setter.Value>
+                                            <ContextMenu>
+                                                <MenuItem Header="開く"
+                                                          Command="{Binding PlacementTarget.Tag.CTDataListContextMenu1Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
+                                                <MenuItem Header="削除"
+                                                          Command="{Binding PlacementTarget.Tag.CTDataListContextMenu2Command, RelativeSource={RelativeSource AncestorType={x:Type ContextMenu}}}"/>
+                                            </ContextMenu>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView AllowsColumnReorder="True">
+                                    <GridViewColumn Header="撮影日" DisplayMemberBinding="{Binding StudyDateTime}">
+                                        <GridViewColumn.HeaderContainerStyle>
+                                            <Style TargetType="GridViewColumnHeader" BasedOn="{StaticResource {x:Type GridViewColumnHeader}}">
+                                                <Setter Property="Tag" Value="StudyDateTime"/>
+                                                <EventSetter Event="Click" Handler="PatientListColumnHeader_Click"/>
+                                            </Style>
+                                        </GridViewColumn.HeaderContainerStyle>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="患者ID" DisplayMemberBinding="{Binding PatientID}" />
+                                    <GridViewColumn Header="患者名" DisplayMemberBinding="{Binding PatientName}" />
+                                    <GridViewColumn Header="生年月日" DisplayMemberBinding="{Binding Birthday}" />
+                                    <GridViewColumn Header="年齢" DisplayMemberBinding="{Binding Age}" />
+                                    <GridViewColumn Header="性別" DisplayMemberBinding="{Binding Gender}" />
+                                    <GridViewColumn Header="マーカ関心領域" DisplayMemberBinding="{Binding ProcessStatus}" />
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Right Column: Actions -->
+            <StackPanel Grid.Column="2" Orientation="Vertical">
+                <Border Style="{StaticResource CardBorderStyle}" Padding="32" Margin="32,0,0,24">
+                    <StackPanel>
+                        <TextBlock Text="エクスポート" FontSize="26" FontWeight="Bold" Foreground="{StaticResource FontBrush}"/>
+                        <TextBlock Text="端末へ3Dデータをワンタップで転送" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}" Margin="0,8,0,0"/>
+                        <Button Width="237" Tag="{Binding ActiveXrealStatus}" Command="{Binding XRealButtonCommand}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="XREAL" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <TextBlock Text="ヘッドセット" FontSize="14" HorizontalAlignment="Center" Foreground="{StaticResource WhiteEffectBrush}"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Width="237" Margin="0,12,0,0" Tag="{Binding ActiveXrealiPhoneStatus}" Command="{Binding XRealiPhoneButtonCommand}">
+                            <StackPanel>
+                                <TextBlock Text="iPad" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                <TextBlock Text="モバイルビューアー" FontSize="14" HorizontalAlignment="Center" Foreground="{StaticResource WhiteEffectBrush}"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}" Padding="32" Margin="32,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="操作" FontSize="26" FontWeight="Bold" Foreground="{StaticResource FontBrush}"/>
+                        <TextBlock Text="選択中の患者データに対して実行" FontSize="16" Foreground="{StaticResource SecondaryFontBrush}" Margin="0,8,0,0"/>
+                        <Button Style="{StaticResource RoundedButtonStyleShort}" Tag="{Binding ActiveSetMarkerStateStatus}" Command="{Binding MarkerRoiButtonCommand}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock HorizontalAlignment="Center">マーカ設定</TextBlock>
+                                <TextBlock HorizontalAlignment="Center" FontSize="14">関心領域</TextBlock>
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Style="{StaticResource RoundedButtonStyleShort}" Command="{Binding CTDataListSelectDeleteButtonCommand}">
+                                削除
+                            </Button>
+                            <Button Style="{StaticResource RoundedButtonStyleShort}" Margin="16,0,0,0" Command="{Binding CTDataListAllDeleteButtonCommand}">
+                                一括削除
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
 </UserControl>
