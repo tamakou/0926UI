@@ -167,6 +167,7 @@
                             MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
                             MouseMove="Canvas_MouseMove"
                             MouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                            MouseRightButtonDown="Canvas_MouseRightButtonDown"
                             MouseDown="Canvas_OptionMouseDown"
                             MouseUp="Canvas_OptionMouseUp"
                             SizeChanged="Canvas_SizeChanged"

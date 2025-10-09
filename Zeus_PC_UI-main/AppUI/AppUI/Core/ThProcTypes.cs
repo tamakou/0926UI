@@ -211,6 +211,12 @@ public enum RenderingCmdType
   Dim3SetupObj = 7,
 };
 
+public enum RenderingCmdMinorType
+{
+  None = 0,
+  Reset = 1,
+};
+
 public enum RenderImageFormat
 {
   Unknown = -1,

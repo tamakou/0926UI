@@ -405,6 +405,19 @@ public partial class SliceViewer2DControlViewModel : ObservableObject, IDisposab
         Log.Info("SliceViewer2DControlViewModel OnOptionUp(X:{0} Y:{1} deltaX:{2} deltaY:{3})", currentPosX, currentPosY, deltaX, deltaY);
     }
 
+    public void ResetView()
+    {
+        if (_appState.VolumeInfoKey == 0) return;
+
+        Log.Info("SliceViewer2DControlViewModel ResetView(volKey:{0})", _appState.VolumeInfoKey);
+
+        ZoomScale = 1.0;
+        CurrentCursor = Cursors.Arrow;
+
+        var tempImage = ThProc.ResetImageViewFor2D(_appState.VolumeInfoKey);
+        ImageSource = tempImage ?? ImageSource;
+    }
+
     public void OnSliderValueChanged(int newValue)
     {
         if (_appState.VolumeInfoKey == 0) return;
