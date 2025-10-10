@@ -1562,7 +1562,24 @@ public partial class ThProc
             throw new WarningException("00000", errMsg);
         }
 
-        return ResetImageView(volInfo.VolumeInfo.volID, volInfo.RenderImageInfo3D, false);
+        var resetImage = ResetImageView(volInfo.VolumeInfo.volID, volInfo.RenderImageInfo3D, false);
+
+        // 同期されたRenderGCを取得し、DLL側で更新された回転情報を保持する
+        if (!UpdateRenderGraphicContext(volInfo.RenderImageInfo3D))
+        {
+            Log.Warn("ResetImageViewFor3D UpdateRenderGraphicContext failed. volId:{0}", volInfo.VolumeInfo.volID);
+        }
+
+        var renderGc = volInfo.RenderImageInfo3D.RenderGC;
+        renderGc.panX = 0;
+        renderGc.panY = 0;
+        renderGc.zoom = 1.0f;
+        renderGc.renderCmdMinor = (int)RenderingCmdMinorType.None;
+        volInfo.RenderImageInfo3D.RenderGC = renderGc;
+
+        var refreshedImage = UpdateImage(volInfo.VolumeInfo.volID, volInfo.RenderImageInfo3D, false);
+
+        return refreshedImage ?? resetImage;
     }
 
     private static WriteableBitmap? UpdateImagePanChanged(int volId, ThRenderImageInfo renderInfo, double deltaX, double deltaY, bool is2D)
