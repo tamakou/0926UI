@@ -429,6 +429,20 @@ public partial class SliceViewer3DControlViewModel : ObservableObject, IDisposab
         ImageSource = tempImage ?? ImageSource;
     }
 
+    [RelayCommand]
+    private void ResetView()
+    {
+        if (_appState.VolumeInfoKey == 0) return;
+
+        Log.Info("SliceViewer3DControlViewModel ResetView(volKey:{0})", _appState.VolumeInfoKey);
+
+        ZoomScale = 1.0;
+        CurrentCursor = Cursors.Arrow;
+
+        var tempImage = ThProc.ResetImageViewFor3D(_appState.VolumeInfoKey);
+        ImageSource = tempImage ?? ImageSource;
+    }
+
     public void Dispose()
     {
         _appState.PropertyChanged -= OnMarkerRoiSettingPageStateChanged;
