@@ -996,14 +996,19 @@ public partial class ThProc
             return null;
         }
 
+        var imageId = renderInfo.Image2D.imageID;
+
         var retImage = ThProc.Get2DImageData(renderInfo.Image2D);
 
-        if (ExecuteCommand(
-            new CsCmd { cmdID = (int)ExecCmdType.ReleaseImage2D, intParam = renderInfo.Image2D.imageID }, 
-            out _) != 0)
+        if (imageId >= 0)
         {
-            Log.Error("ReleaseImage2D failed");
-            return null;
+            if (ExecuteCommand(
+                new CsCmd { cmdID = (int)ExecCmdType.ReleaseImage2D, intParam = imageId },
+                out _) != 0)
+            {
+                Log.Error("ReleaseImage2D failed");
+                return null;
+            }
         }
 
         return retImage;
@@ -1563,48 +1568,10 @@ public partial class ThProc
         }
 
         var renderInfo = volInfo.RenderImageInfo3D;
-        var currentRenderGc = renderInfo.RenderGC;
-
         var resetImage = ResetImageView(volInfo.VolumeInfo.volID, renderInfo, false);
 
-        // 同期されたRenderGCを取得し、DLL側で更新された回転情報を保持する
-        if (!UpdateRenderGraphicContext(renderInfo))
-        {
-            Log.Warn("ResetImageViewFor3D UpdateRenderGraphicContext failed. volId:{0}", volInfo.VolumeInfo.volID);
-            return resetImage;
-        }
-
-        var refreshedRenderGc = renderInfo.RenderGC;
-
-        if (currentRenderGc.targeSizeX > 0)
-        {
-            refreshedRenderGc.targeSizeX = currentRenderGc.targeSizeX;
-        }
-
-        if (currentRenderGc.targeSizeY > 0)
-        {
-            refreshedRenderGc.targeSizeY = currentRenderGc.targeSizeY;
-        }
-
-        // keep the previously selected rendering state so subsequent commands
-        // (e.g. marker finalisation or ROI mode switches) continue to operate
-        // against the correct series, presets and display flags even after the
-        // DLL refreshes the GC during the reset.
-        refreshedRenderGc.displayMode = currentRenderGc.displayMode;
-        refreshedRenderGc.seriesType = currentRenderGc.seriesType;
-        refreshedRenderGc.renderPreset = currentRenderGc.renderPreset;
-        refreshedRenderGc.studyCase = currentRenderGc.studyCase;
-        refreshedRenderGc.displayParts = currentRenderGc.displayParts;
-        refreshedRenderGc.slicePosition = currentRenderGc.slicePosition;
-        refreshedRenderGc.windowLevle = currentRenderGc.windowLevle;
-        refreshedRenderGc.windowWidth = currentRenderGc.windowWidth;
-
-        refreshedRenderGc.panX = 0;
-        refreshedRenderGc.panY = 0;
-        refreshedRenderGc.zoom = 1.0f;
-        refreshedRenderGc.renderCmdMinor = (int)RenderingCmdMinorType.None;
-        renderInfo.RenderGC = refreshedRenderGc;
-
+        // Issue a follow-up render so the viewer reflects the reset orientation
+        // immediately without waiting for the next user interaction.
         var refreshedImage = UpdateImage(volInfo.VolumeInfo.volID, renderInfo, false);
 
         return refreshedImage ?? resetImage;
@@ -1645,23 +1612,23 @@ public partial class ThProc
         renderInfo.RenderGC = renderGc;
 
         var retImage = UpdateImage(volId, renderInfo, is2D);
-        if (retImage == null)
-        {
-            Log.Warn("ResetImageView UpdateImage(volId:{0}, is2D:{1}) is null.", volId, is2D);
-            if (!GetLastError(out var errCode, out var errMessage))
-            {
-                errCode = "00000";
-                errMessage = MessageService.GetMessage(MessageCode.UnknownError);
-            }
-            throw new WarningException(errCode, errMessage);
-        }
-
         var updatedRenderGc = renderInfo.RenderGC;
         updatedRenderGc.renderCmdMinor = (int)RenderingCmdMinorType.None;
         updatedRenderGc.panX = 0;
         updatedRenderGc.panY = 0;
         updatedRenderGc.zoom = 1.0f;
         renderInfo.RenderGC = updatedRenderGc;
+
+        if (retImage == null)
+        {
+            Log.Warn("ResetImageView UpdateImage(volId:{0}, is2D:{1}) returned no image.", volId, is2D);
+            if (GetLastError(out var errCode, out var errMessage))
+            {
+                throw new WarningException(errCode, errMessage);
+            }
+
+            return null;
+        }
 
         return retImage;
     }
@@ -1685,6 +1652,12 @@ public partial class ThProc
             RenderImageFormat.ARGB32 => PixelFormats.Bgra32,
             _ => PixelFormats.Gray8,
         };
+
+        if (imageData.imageID < 0)
+        {
+            Log.Warn("Get2DImageData received invalid image id. imageID:{0}", imageData.imageID);
+            return null;
+        }
 
         if (imageData.sizeX <= 0 || imageData.sizeY <= 0)
         {
