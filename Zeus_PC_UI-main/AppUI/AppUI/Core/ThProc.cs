@@ -996,14 +996,19 @@ public partial class ThProc
             return null;
         }
 
+        var imageId = renderInfo.Image2D.imageID;
+
         var retImage = ThProc.Get2DImageData(renderInfo.Image2D);
 
-        if (ExecuteCommand(
-            new CsCmd { cmdID = (int)ExecCmdType.ReleaseImage2D, intParam = renderInfo.Image2D.imageID }, 
-            out _) != 0)
+        if (imageId >= 0)
         {
-            Log.Error("ReleaseImage2D failed");
-            return null;
+            if (ExecuteCommand(
+                new CsCmd { cmdID = (int)ExecCmdType.ReleaseImage2D, intParam = imageId },
+                out _) != 0)
+            {
+                Log.Error("ReleaseImage2D failed");
+                return null;
+            }
         }
 
         return retImage;
@@ -1539,6 +1544,39 @@ public partial class ThProc
         return UpdateImagePanChanged(volInfo.VolumeInfo.volID, volInfo.RenderImageInfo3D, deltaX, deltaY, false);
     }
 
+    public static WriteableBitmap? ResetImageViewFor2D(int volumeInfoKey)
+    {
+        if (!VolumeRenderInfos.TryGetValue(volumeInfoKey, out var volInfo) ||
+            volInfo.RenderImageInfo2D == null)
+        {
+            TryGetValueErrorLog("ResetImageViewFor2D", volumeInfoKey);
+            var errMsg = MessageService.GetMessage(MessageCode.VolumeKeyUndefined);
+            throw new WarningException("00000", errMsg);
+        }
+
+        return ResetImageView(volInfo.VolumeInfo.volID, volInfo.RenderImageInfo2D, true);
+    }
+
+    public static WriteableBitmap? ResetImageViewFor3D(int volumeInfoKey)
+    {
+        if (!VolumeRenderInfos.TryGetValue(volumeInfoKey, out var volInfo) ||
+            volInfo.RenderImageInfo3D == null)
+        {
+            TryGetValueErrorLog("ResetImageViewFor3D", volumeInfoKey);
+            var errMsg = MessageService.GetMessage(MessageCode.VolumeKeyUndefined);
+            throw new WarningException("00000", errMsg);
+        }
+
+        var renderInfo = volInfo.RenderImageInfo3D;
+        var resetImage = ResetImageView(volInfo.VolumeInfo.volID, renderInfo, false);
+
+        // Issue a follow-up render so the viewer reflects the reset orientation
+        // immediately without waiting for the next user interaction.
+        var refreshedImage = UpdateImage(volInfo.VolumeInfo.volID, renderInfo, false);
+
+        return refreshedImage ?? resetImage;
+    }
+
     private static WriteableBitmap? UpdateImagePanChanged(int volId, ThRenderImageInfo renderInfo, double deltaX, double deltaY, bool is2D)
     {
         var renderGc = renderInfo.RenderGC;
@@ -1561,6 +1599,40 @@ public partial class ThProc
         return retImage;
     }
 
+    private static WriteableBitmap? ResetImageView(int volId, ThRenderImageInfo renderInfo, bool is2D)
+    {
+        var renderGc = renderInfo.RenderGC;
+
+        renderGc.renderCmdMajor = is2D ? (int)RenderingCmdType.Dim2 : (int)RenderingCmdType.Dim3;
+        renderGc.renderCmdMinor = (int)RenderingCmdMinorType.Reset;
+        renderGc.panX = 0;
+        renderGc.panY = 0;
+        renderGc.zoom = 1.0f;
+
+        renderInfo.RenderGC = renderGc;
+
+        var retImage = UpdateImage(volId, renderInfo, is2D);
+        var updatedRenderGc = renderInfo.RenderGC;
+        updatedRenderGc.renderCmdMinor = (int)RenderingCmdMinorType.None;
+        updatedRenderGc.panX = 0;
+        updatedRenderGc.panY = 0;
+        updatedRenderGc.zoom = 1.0f;
+        renderInfo.RenderGC = updatedRenderGc;
+
+        if (retImage == null)
+        {
+            Log.Warn("ResetImageView UpdateImage(volId:{0}, is2D:{1}) returned no image.", volId, is2D);
+            if (GetLastError(out var errCode, out var errMessage))
+            {
+                throw new WarningException(errCode, errMessage);
+            }
+
+            return null;
+        }
+
+        return retImage;
+    }
+
     private static WriteableBitmap? Get2DImageData(CsThProcLibImage2DData imageData)
     {
         var formatByteSize = (RenderImageFormat)imageData.format switch
@@ -1580,6 +1652,18 @@ public partial class ThProc
             RenderImageFormat.ARGB32 => PixelFormats.Bgra32,
             _ => PixelFormats.Gray8,
         };
+
+        if (imageData.imageID < 0)
+        {
+            Log.Warn("Get2DImageData received invalid image id. imageID:{0}", imageData.imageID);
+            return null;
+        }
+
+        if (imageData.sizeX <= 0 || imageData.sizeY <= 0)
+        {
+            Log.Warn("Get2DImageData received invalid image size. imageID:{0} sizeX:{1} sizeY:{2}", imageData.imageID, imageData.sizeX, imageData.sizeY);
+            return null;
+        }
 
         if (Get2DImageData(imageData.imageID, imageData.sizeX * imageData.sizeY * formatByteSize, out var outBuffer) == 0)
         {

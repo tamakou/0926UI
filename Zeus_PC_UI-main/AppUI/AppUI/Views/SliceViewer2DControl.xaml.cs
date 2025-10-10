@@ -87,6 +87,27 @@ namespace AppUI.Views
             }
         }
 
+        private void Canvas_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                if (ImageArea.IsMouseCaptured)
+                {
+                    ImageArea.ReleaseMouseCapture();
+                }
+
+                _isDragging = false;
+                _isOptionDragging = false;
+
+                if (DataContext is SliceViewer2DControlViewModel vm)
+                {
+                    vm.ResetView();
+                }
+
+                e.Handled = true;
+            }
+        }
+
         private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             var newVal = e.NewValue;

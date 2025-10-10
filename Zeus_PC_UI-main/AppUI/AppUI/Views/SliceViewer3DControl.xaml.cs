@@ -31,6 +31,7 @@ namespace AppUI.Views
 
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            Focus();
             _startPoint = e.GetPosition(ImageArea);
             ImageArea.CaptureMouse();
             if (DataContext is SliceViewer3DControlViewModel vm)
@@ -89,6 +90,7 @@ namespace AppUI.Views
             if (_isDragging || _isOptionDragging) return;
             if (e.ChangedButton == MouseButton.Middle || e.ChangedButton == MouseButton.Right)
             {
+                Focus();
                 _startPoint = e.GetPosition(ImageArea);
                 ImageArea.CaptureMouse();
                 if (DataContext is SliceViewer3DControlViewModel vm)
@@ -116,6 +118,20 @@ namespace AppUI.Views
                     }
 
                 }
+            }
+        }
+
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            Focus();
+        }
+
+        private void UserControl_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.R && DataContext is SliceViewer3DControlViewModel vm)
+            {
+                vm.ResetViewCommand.Execute(null);
+                e.Handled = true;
             }
         }
     }
