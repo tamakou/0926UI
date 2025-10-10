@@ -5,84 +5,77 @@
              xmlns:vm="clr-namespace:AppUI.ViewModels">
   <Application.Resources>
 
-    <!-- ===== Color / Brush（ブランド：#18469C） ===== -->
-    <Color x:Key="BackColor">#F8F9FA</Color>
-    <Color x:Key="BlackColor">#000000</Color>
-    <Color x:Key="ButtonNormalColor">#18469C</Color>
-    <Color x:Key="ButtonActiveColor">#2A5BC0</Color>
-    <Color x:Key="StatusColor">#E7F5FF</Color>
-    <Color x:Key="DarkGrayColor">#667085</Color>
-    <Color x:Key="ActiveEffectColor">#E7F5FF</Color>
-    <Color x:Key="ListHeaderColor">#18469C</Color>
-    <Color x:Key="DemoMarkerColor">#8018469C</Color>
-    <Color x:Key="WhiteEffectColor">#FFFFFF</Color>
-    <Color x:Key="GrayEffectColor">#E0E0E0</Color>
-    <Color x:Key="InvalidFontEffectColor">#AAAAAA</Color>
-    <Color x:Key="InvalidBorderEffectColor">#9DC3E6</Color>
+    <!-- ===== Color / Brush ===== -->
+    <Color x:Key="BackColor">#F2F6FB</Color>
+    <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
+    <Color x:Key="SurfaceMutedColor">#E6EEF8</Color>
+    <Color x:Key="PrimaryColor">#2563EB</Color>
+    <Color x:Key="PrimaryDarkColor">#1D4ED8</Color>
+    <Color x:Key="PrimaryLightColor">#93C5FD</Color>
+    <Color x:Key="AccentColor">#14B8A6</Color>
+    <Color x:Key="NeutralTextColor">#1F2937</Color>
+    <Color x:Key="SecondaryTextColor">#475569</Color>
+    <Color x:Key="DisabledTextColor">#94A3B8</Color>
+    <Color x:Key="DividerColor">#CBD5F5</Color>
+    <Color x:Key="DemoMarkerColor">#802563EB</Color>
 
     <SolidColorBrush x:Key="BackBrush" Color="{StaticResource BackColor}"/>
-    <SolidColorBrush x:Key="FontBrush" Color="#0B0D12"/>
-    <SolidColorBrush x:Key="BorderBrush" Color="#D0D5DD"/>
-    <SolidColorBrush x:Key="ButtonNormalBrush" Color="{StaticResource ButtonNormalColor}"/>
-    <SolidColorBrush x:Key="ButtonActiveBrush" Color="{StaticResource ButtonActiveColor}"/>
-    <SolidColorBrush x:Key="ViewerBackBrush" Color="{StaticResource BlackColor}"/>
-    <SolidColorBrush x:Key="ViewerLoadMessageBrush" Color="{StaticResource DarkGrayColor}"/>
-    <SolidColorBrush x:Key="StatusBrush" Color="{StaticResource StatusColor}"/>
-    <SolidColorBrush x:Key="ActiveEffectBrush" Color="{StaticResource ActiveEffectColor}"/>
-    <SolidColorBrush x:Key="ListHeaderBrush" Color="{StaticResource ListHeaderColor}"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+    <SolidColorBrush x:Key="SurfaceMutedBrush" Color="{StaticResource SurfaceMutedColor}"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+    <SolidColorBrush x:Key="FontBrush" Color="{StaticResource NeutralTextColor}"/>
+    <SolidColorBrush x:Key="SecondaryFontBrush" Color="{StaticResource SecondaryTextColor}"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource DividerColor}"/>
+    <SolidColorBrush x:Key="ButtonNormalBrush" Color="{StaticResource PrimaryColor}"/>
+    <SolidColorBrush x:Key="ButtonActiveBrush" Color="{StaticResource PrimaryDarkColor}"/>
+    <SolidColorBrush x:Key="ButtonHoverBrush" Color="#2F6FED"/>
+    <SolidColorBrush x:Key="ButtonOutlineBrush" Color="{StaticResource PrimaryLightColor}"/>
+    <SolidColorBrush x:Key="ViewerBackBrush" Color="#000000"/>
+    <SolidColorBrush x:Key="ViewerLoadMessageBrush" Color="{StaticResource SecondaryTextColor}"/>
+    <SolidColorBrush x:Key="StatusBrush" Color="{StaticResource SurfaceMutedColor}"/>
+    <SolidColorBrush x:Key="ActiveEffectBrush" Color="{StaticResource PrimaryLightColor}"/>
+    <SolidColorBrush x:Key="ListHeaderBrush" Color="{StaticResource PrimaryColor}"/>
     <SolidColorBrush x:Key="DemoMarkerBrush" Color="{StaticResource DemoMarkerColor}"/>
-    <SolidColorBrush x:Key="WhiteEffectBrush" Color="{StaticResource WhiteEffectColor}"/>
-    <SolidColorBrush x:Key="GrayEffectBrush" Color="{StaticResource GrayEffectColor}"/>
-    <SolidColorBrush x:Key="InvalidFontEffectBrush" Color="{StaticResource InvalidFontEffectColor}"/>
-    <SolidColorBrush x:Key="InvalidBorderEffectBrush" Color="{StaticResource InvalidBorderEffectColor}"/>
+    <SolidColorBrush x:Key="WhiteEffectBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="GrayEffectBrush" Color="#E2E8F0"/>
+    <SolidColorBrush x:Key="InvalidFontEffectBrush" Color="{StaticResource DisabledTextColor}"/>
+    <SolidColorBrush x:Key="InvalidBorderEffectBrush" Color="{StaticResource PrimaryLightColor}"/>
 
     <!-- ===== Label ===== -->
     <Style x:Key="LabelBase" TargetType="Label">
       <Setter Property="FontSize" Value="20"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
       <Setter Property="Foreground" Value="{StaticResource FontBrush}"/>
-      <Style.Triggers>
-        <DataTrigger Binding="{Binding Tag.IsActive, RelativeSource={RelativeSource Self}}" Value="True">
-          <Setter Property="Background" Value="{StaticResource StatusBrush}"/>
-          <Setter Property="BorderBrush" Value="{StaticResource StatusBrush}"/>
-          <Setter Property="Foreground" Value="{StaticResource FontBrush}"/>
-        </DataTrigger>
-      </Style.Triggers>
+      <Setter Property="Padding" Value="4"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Label">
+            <Border x:Name="border"
+                    Background="Transparent"
+                    CornerRadius="12"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <DataTrigger Binding="{Binding Tag.IsActive, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                <Setter TargetName="border" Property="Background" Value="{StaticResource ActiveEffectBrush}"/>
+              </DataTrigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="Label" BasedOn="{StaticResource LabelBase}"/>
 
     <!-- 三角アイコン（→ と ▼） -->
-    <Style x:Key="DoubleTriangleIcon" TargetType="{x:Type Label}">
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="{x:Type Label}">
-            <Grid>
-              <Polygon Points="0,0 30,19 0,38"
-                       Stroke="{StaticResource BorderBrush}" StrokeThickness="1">
-                <Polygon.Fill>
-                  <SolidColorBrush Color="{StaticResource BackColor}"/>
-                </Polygon.Fill>
-              </Polygon>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style x:Key="DownTriangleIcon" TargetType="{x:Type Label}">
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="{x:Type Label}">
-            <Grid>
-              <Polygon Points="0,0 38,0 19,30 0,0"
-                       Stroke="{StaticResource BorderBrush}" StrokeThickness="1">
-                <Polygon.Fill>
-                  <SolidColorBrush Color="{StaticResource BackColor}"/>
-                </Polygon.Fill>
-              </Polygon>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
+    <Style x:Key="StepConnector" TargetType="Rectangle">
+      <Setter Property="Height" Value="4"/>
+      <Setter Property="RadiusX" Value="2"/>
+      <Setter Property="RadiusY" Value="2"/>
+      <Setter Property="Fill" Value="{StaticResource SurfaceMutedBrush}"/>
     </Style>
 
     <!-- ===== Text ===== -->
@@ -119,36 +112,37 @@
     <!-- ===== Button（ブランド色） ===== -->
     <Style x:Key="RoundedButtonStyle" TargetType="Button">
       <Setter Property="Background" Value="{StaticResource ButtonNormalBrush}"/>
-      <Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBrush}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource ButtonOutlineBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Foreground" Value="{StaticResource WhiteEffectBrush}"/>
-      <Setter Property="Width" Value="140"/>
-      <Setter Property="MinHeight" Value="40"/>
+      <Setter Property="Padding" Value="28,20"/>
       <Setter Property="FontSize" Value="18"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="Button">
             <Border x:Name="border"
-                    CornerRadius="12"
+                    CornerRadius="16"
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
                                 TextElement.Foreground="{TemplateBinding Foreground}"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Foreground" Value="#FFFFFFCC"/>
-                <Setter TargetName="border" Property="Background" Value="#18469C66"/>
-                <Setter TargetName="border" Property="BorderBrush" Value="#18469C66"/>
+                <Setter TargetName="border" Property="Background" Value="#BFD3FB"/>
+                <Setter TargetName="border" Property="BorderBrush" Value="#BFD3FB"/>
+                <Setter Property="Foreground" Value="#FFFFFFFF"/>
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonActiveBrush}"/>
-                <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource ButtonActiveBrush}"/>
+                <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonHoverBrush}"/>
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="border" Property="Background" Value="#123775"/>
-                <Setter TargetName="border" Property="BorderBrush" Value="#123775"/>
+                <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonActiveBrush}"/>
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -164,37 +158,29 @@
     </Style>
 
     <Style TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}"/>
+
     <Style x:Key="RoundedButtonStyleShort" TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
-      <Setter Property="Width" Value="100"/>
+      <Setter Property="Padding" Value="18,16"/>
+      <Setter Property="MinWidth" Value="120"/>
     </Style>
 
-    <!-- アイコンボタン（標準） -->
-    <Style x:Key="IconButton" TargetType="Button">
-      <Setter Property="Width" Value="55"/>
-      <Setter Property="Height" Value="55"/>
-      <Setter Property="FontSize" Value="40"/>
-      <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Background" Value="{StaticResource ButtonNormalBrush}"/>
-      <Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBrush}"/>
-      <Setter Property="Foreground" Value="{StaticResource WhiteEffectBrush}"/>
-      <Setter Property="BorderThickness" Value="1"/>
-      <Setter Property="Template">
+    <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource RoundedButtonStyle}">
+      <Setter Property="Padding" Value="18"/>
+      <Setter Property="MinWidth" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="Width" Value="56"/>
+      <Setter Property="Height" Value="56"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+    </Style>
+
+    <Style x:Key="CardBorderStyle" TargetType="Border">
+      <Setter Property="CornerRadius" Value="24"/>
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+      <Setter Property="Padding" Value="36"/>
+      <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Effect">
         <Setter.Value>
-          <ControlTemplate TargetType="Button">
-            <Border x:Name="border"
-                    CornerRadius="12"
-                    Background="{TemplateBinding Background}"
-                    BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}">
-              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                TextElement.Foreground="{TemplateBinding Foreground}"/>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="border" Property="Background" Value="{StaticResource ButtonActiveBrush}"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
+          <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.15" Color="#1E3A8A"/>
         </Setter.Value>
       </Setter>
     </Style>
