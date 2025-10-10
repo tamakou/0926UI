@@ -1586,6 +1586,19 @@ public partial class ThProc
             refreshedRenderGc.targeSizeY = currentRenderGc.targeSizeY;
         }
 
+        // keep the previously selected rendering state so subsequent commands
+        // (e.g. marker finalisation or ROI mode switches) continue to operate
+        // against the correct series, presets and display flags even after the
+        // DLL refreshes the GC during the reset.
+        refreshedRenderGc.displayMode = currentRenderGc.displayMode;
+        refreshedRenderGc.seriesType = currentRenderGc.seriesType;
+        refreshedRenderGc.renderPreset = currentRenderGc.renderPreset;
+        refreshedRenderGc.studyCase = currentRenderGc.studyCase;
+        refreshedRenderGc.displayParts = currentRenderGc.displayParts;
+        refreshedRenderGc.slicePosition = currentRenderGc.slicePosition;
+        refreshedRenderGc.windowLevle = currentRenderGc.windowLevle;
+        refreshedRenderGc.windowWidth = currentRenderGc.windowWidth;
+
         refreshedRenderGc.panX = 0;
         refreshedRenderGc.panY = 0;
         refreshedRenderGc.zoom = 1.0f;
@@ -1635,7 +1648,11 @@ public partial class ThProc
         if (retImage == null)
         {
             Log.Warn("ResetImageView UpdateImage(volId:{0}, is2D:{1}) is null.", volId, is2D);
-            GetLastError(out var errCode, out var errMessage);
+            if (!GetLastError(out var errCode, out var errMessage))
+            {
+                errCode = "00000";
+                errMessage = MessageService.GetMessage(MessageCode.UnknownError);
+            }
             throw new WarningException(errCode, errMessage);
         }
 
